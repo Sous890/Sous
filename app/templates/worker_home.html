@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Home — Team Agent{% endblock %}
+{% block content %}
+<h1>Hi, {{ user.nickname }} 👋</h1>
+<p style="color:#555;font-size:15px;">You're logged in as <strong>{{ user.username }}</strong>.</p>
+
+{% if user.permission_set() %}
+<div class="card" style="margin-top:24px;">
+  <h2>Your permissions</h2>
+  <ul style="list-style:none;padding:0;">
+    {% for cap in user.permission_set() %}
+    <li style="padding:4px 0;font-size:14px;">✓ {{ cap }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% else %}
+<div class="card" style="margin-top:24px;color:#888;">
+  <p>No capabilities granted yet. Ask the coordinator to grant you access.</p>
+</div>
+{% endif %}
+{% endblock %}

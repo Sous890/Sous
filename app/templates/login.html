@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Log in — Team Agent{% endblock %}
+{% block nav %}{% endblock %}
+{% block content %}
+<div style="max-width:360px;margin:80px auto;">
+  <h1 style="margin-bottom:24px;">Team Agent</h1>
+  {% if error %}
+  <div class="flash-error">{{ error }}</div>
+  {% endif %}
+  <div class="card">
+    <form method="post" action="/login">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input id="username" type="text" name="username" autocomplete="username" autofocus required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" name="password" autocomplete="current-password" required />
+      </div>
+      <button class="btn" type="submit" style="width:100%">Log in</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

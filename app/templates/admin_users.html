@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Users — Team Agent{% endblock %}
+{% block content %}
+<h1>Users</h1>
+
+{% if temp_info %}
+<div class="flash-success">
+  <strong>User created!</strong> Share these credentials with
+  <strong>{{ temp_info.nickname }}</strong> (<code>{{ temp_info.username }}</code>) out-of-band.
+  This password is shown <em>once only</em>:<br><br>
+  <code style="font-size:16px;letter-spacing:.05em;">{{ temp_info.password }}</code>
+</div>
+{% endif %}
+
+{% if error is defined and error %}
+<div class="flash-error">{{ error }}</div>
+{% endif %}
+
+<!-- Create user form -->
+<div class="card">
+  <h2>Create worker account</h2>
+  <form method="post" action="/admin/users" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+    <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+      <label>Username (lowercase)</label>
+      <input type="text" name="username" pattern="[a-z0-9_]+" title="lowercase letters, digits, underscore" required />
+    </div>
+    <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+      <label>Nickname (display name)</label>
+      <input type="text" name="nickname" required />
+    </div>
+    <button class="btn" type="submit">Create</button>
+  </form>
+</div>
+
+<!-- User list -->
+<table>
+  <thead>
+    <tr>
+      <th>Username</th>
+      <th>Nickname</th>
+      <th>Role</th>
+      <th>Active</th>
+      <th>Permissions</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td><code>{{ u.username }}</code></td>
+      <td>{{ u.nickname }}</td>
+      <td>
+        {% if u.role == 'admin' %}
+          <span class="badge badge-admin">admin</span>
+        {% else %}
+          <span class="badge badge-worker">worker</span>
+        {% endif %}
+      </td>
+      <td>{{ "Yes" if u.is_active else "No" }}</td>
+      <td>
+        {% if u.role == 'admin' %}
+          <em style="color:#888;font-size:13px;">all (admin)</em>
+        {% else %}
+          {% set user_caps = u.permission_set() %}
+          {% for cap in capabilities %}
+          <form method="post" action="/admin/users/{{ u.id }}/permissions"
+                style="display:inline;">
+            <input type="hidden" name="capability" value="{{ cap }}" />
+            <button type="submit"
+                    style="background:none;border:none;cursor:pointer;font-size:13px;padding:1px 4px;"
+                    title="Toggle {{ cap }}">
+              {% if cap in user_caps %}
+                <span class="perm-on" title="{{ cap }}">✓ {{ cap }}</span>
+              {% else %}
+                <span class="perm-off" title="{{ cap }}">○ {{ cap }}</span>
+              {% endif %}
+            </button>
+          </form>
+          {% endfor %}
+        {% endif %}
+      </td>
+      <td></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

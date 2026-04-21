@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Team Agent{% endblock %}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      background: #f5f5f5;
+      color: #111;
+    }
+    nav {
+      background: #111;
+      color: #fff;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    nav .brand { font-weight: 600; font-size: 16px; }
+    nav a { color: #aaa; text-decoration: none; font-size: 14px; }
+    nav a:hover { color: #fff; }
+    nav .spacer { flex: 1; }
+    .container {
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 20px;
+    }
+    h1 { font-size: 22px; font-weight: 600; margin-bottom: 20px; }
+    h2 { font-size: 17px; font-weight: 600; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+    th { background: #f0f0f0; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .03em; }
+    tr:last-child td { border-bottom: none; }
+    .btn {
+      display: inline-block;
+      padding: 7px 14px;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn:hover { background: #333; }
+    .btn-sm { padding: 4px 10px; font-size: 13px; }
+    .btn-outline {
+      background: transparent;
+      color: #111;
+      border: 1px solid #ccc;
+    }
+    .btn-outline:hover { border-color: #111; }
+    .btn-danger { background: #c0392b; }
+    .btn-danger:hover { background: #a93226; }
+    input[type="text"], input[type="password"] {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      width: 100%;
+    }
+    input[type="text"]:focus, input[type="password"]:focus {
+      outline: none;
+      border-color: #111;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .flash-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      border-radius: 4px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .flash-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid #e5e5e5;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-admin { background: #111; color: #fff; }
+    .badge-worker { background: #e0e0e0; color: #555; }
+    .perm-on { color: #27ae60; font-weight: 600; }
+    .perm-off { color: #bbb; }
+  </style>
+</head>
+<body>
+  {% block nav %}
+  <nav>
+    <span class="brand">Team Agent</span>
+    {% if request.state.current_user %}
+      <a href="/">Home</a>
+      {% if request.state.current_user.role == 'admin' %}
+        <a href="/admin/users">Users</a>
+      {% endif %}
+      <span class="spacer"></span>
+      <span style="font-size:13px;color:#888">{{ request.state.current_user.nickname }}</span>
+      <a href="/logout">Log out</a>
+    {% endif %}
+  </nav>
+  {% endblock %}
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>
