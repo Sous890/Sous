@@ -6,13 +6,22 @@
   <title>{% block title %}Team Agent{% endblock %}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Layout: body padding-right shifts content away from the sidebar */
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 15px;
       line-height: 1.5;
       background: #f5f5f5;
       color: #111;
+      transition: padding-right .22s cubic-bezier(.4,0,.2,1);
     }
+    body.sb-expanded { padding-right: 300px; }
+    @media (max-width: 960px) {
+      /* On narrow screens the sidebar overlays — don't shift content */
+      body.sb-expanded { padding-right: 0; }
+    }
+
     nav {
       background: #111;
       color: #fff;
@@ -37,78 +46,263 @@
     th { background: #f0f0f0; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .03em; }
     tr:last-child td { border-bottom: none; }
     .btn {
-      display: inline-block;
-      padding: 7px 14px;
-      background: #111;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
-      text-decoration: none;
+      display: inline-block; padding: 7px 14px;
+      background: #111; color: #fff; border: none;
+      border-radius: 4px; font-size: 14px; cursor: pointer; text-decoration: none;
     }
     .btn:hover { background: #333; }
     .btn-sm { padding: 4px 10px; font-size: 13px; }
-    .btn-outline {
-      background: transparent;
-      color: #111;
-      border: 1px solid #ccc;
-    }
+    .btn-outline { background: transparent; color: #111; border: 1px solid #ccc; }
     .btn-outline:hover { border-color: #111; }
     .btn-danger { background: #c0392b; }
     .btn-danger:hover { background: #a93226; }
     input[type="text"], input[type="password"] {
-      padding: 8px 12px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-      width: 100%;
+      padding: 8px 12px; border: 1px solid #ccc;
+      border-radius: 4px; font-size: 14px; width: 100%;
     }
-    input[type="text"]:focus, input[type="password"]:focus {
-      outline: none;
-      border-color: #111;
-    }
+    input[type="text"]:focus, input[type="password"]:focus { outline: none; border-color: #111; }
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; }
     .flash-success {
-      background: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-      border-radius: 4px;
-      padding: 12px 16px;
-      margin-bottom: 20px;
-      font-size: 14px;
+      background: #d4edda; color: #155724; border: 1px solid #c3e6cb;
+      border-radius: 4px; padding: 12px 16px; margin-bottom: 20px; font-size: 14px;
     }
     .flash-error {
-      background: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
-      border-radius: 4px;
-      padding: 12px 16px;
-      margin-bottom: 20px;
-      font-size: 14px;
+      background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;
+      border-radius: 4px; padding: 12px 16px; margin-bottom: 20px; font-size: 14px;
     }
     .card {
-      background: #fff;
-      border-radius: 6px;
-      padding: 20px;
-      margin-bottom: 20px;
-      border: 1px solid #e5e5e5;
+      background: #fff; border-radius: 6px; padding: 20px;
+      margin-bottom: 20px; border: 1px solid #e5e5e5;
     }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 12px;
-      font-weight: 500;
-    }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 500; }
     .badge-admin { background: #111; color: #fff; }
     .badge-worker { background: #e0e0e0; color: #555; }
     .perm-on { color: #27ae60; font-weight: 600; }
     .perm-off { color: #bbb; }
+
+    /* ================================================================ sidebar */
+    #ta-sidebar {
+      position: fixed;
+      top: 0; right: 0;
+      width: 300px;
+      height: 100vh;
+      background: rgba(252,252,252,0.97);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-left: 1px solid rgba(0,0,0,.1);
+      box-shadow: -4px 0 24px rgba(0,0,0,.08);
+      z-index: 8000;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(0);
+      transition: transform .22s cubic-bezier(.4,0,.2,1);
+    }
+    /* Slide out when body loses sb-expanded */
+    body:not(.sb-expanded) #ta-sidebar { transform: translateX(100%); }
+
+    #ta-sidebar-header {
+      padding: 13px 16px 11px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    #ta-sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px 24px;
+    }
+
+    /* Reopen tab — shows on right edge when sidebar is collapsed */
+    #ta-sb-reopen {
+      position: fixed;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #111;
+      color: #fff;
+      width: 22px;
+      padding: 14px 4px;
+      border-radius: 6px 0 0 6px;
+      cursor: pointer;
+      font-size: 11px;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      letter-spacing: .06em;
+      z-index: 7999;
+      display: none;
+      user-select: none;
+      border: none;
+    }
+    body:not(.sb-expanded) #ta-sb-reopen { display: flex; align-items: center; justify-content: center; }
+
+    /* Sidebar rows */
+    .ta-sb-section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: #999; margin: 14px 0 6px;
+    }
+    .ta-sb-section-label:first-child { margin-top: 4px; }
+    .ta-sb-row {
+      background: #f5f5f5; border-radius: 7px; padding: 8px 10px;
+      margin-bottom: 5px; display: flex; align-items: center; gap: 6px;
+    }
+    .ta-sb-row-main { flex: 1; min-width: 0; }
+    .ta-sb-row-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ta-sb-row-sub { font-size: 11px; color: #777; font-variant-numeric: tabular-nums; }
+    .ta-sb-pin-btn {
+      font-size: 11px; background: #111; color: #fff; border: none;
+      border-radius: 4px; padding: 3px 8px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    .ta-sb-pin-btn:hover { background: #333; }
+    /* Delete button (notes and timers) */
+    .ta-sb-del {
+      background: none; border: none; cursor: pointer; color: #ccc;
+      font-size: 17px; line-height: 1; padding: 0 1px; flex-shrink: 0; transition: color .12s;
+    }
+    .ta-sb-del:hover { color: #e74c3c; }
+    .ta-sb-task-link { text-decoration: none; color: inherit; display: block; }
+    .ta-sb-task-link:hover .ta-sb-row { background: #eee; }
+
+    /* Chat toggle switch */
+    .ta-toggle-row {
+      display: flex; align-items: center; gap: 10px;
+      background: #f5f5f5; border-radius: 7px; padding: 9px 10px;
+      cursor: pointer; user-select: none;
+    }
+    .ta-toggle-row input[type="checkbox"] { display: none; }
+    .ta-toggle-track {
+      width: 36px; height: 20px; background: #ddd; border-radius: 10px;
+      position: relative; flex-shrink: 0; transition: background .18s;
+    }
+    .ta-toggle-track::after {
+      content: ''; position: absolute; width: 16px; height: 16px;
+      background: #fff; border-radius: 50%; top: 2px; left: 2px;
+      transition: transform .18s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .ta-toggle-row input:checked ~ .ta-toggle-track { background: #111; }
+    .ta-toggle-row input:checked ~ .ta-toggle-track::after { transform: translateX(16px); }
+
+    /* ============================================================= floating cards */
+    #ta-cards-layer {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 9000;
+    }
+    .ta-card {
+      position: absolute; pointer-events: auto; background: #fff;
+      border: 1px solid #ddd; border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.18);
+      width: 230px; overflow: hidden; user-select: none;
+    }
+    .ta-card-header {
+      background: #111; color: #fff; padding: 9px 12px;
+      cursor: grab; display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600; letter-spacing: .01em;
+    }
+    .ta-card-header:active { cursor: grabbing; }
+    .ta-card-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ta-card-hbtn {
+      background: none; border: none; color: rgba(255,255,255,.6);
+      cursor: pointer; font-size: 14px; line-height: 1;
+      padding: 0 3px; flex-shrink: 0; transition: color .12s;
+    }
+    .ta-card-hbtn:hover { color: #fff; }
+    .ta-card-close {
+      background: none; border: none; color: rgba(255,255,255,.5);
+      cursor: pointer; font-size: 17px; line-height: 1; padding: 0 2px; flex-shrink: 0;
+    }
+    .ta-card-close:hover { color: #fff; }
+    .ta-card-body { padding: 12px 14px; }
+
+    /* Timer card */
+    .ta-timer-display {
+      font-size: 38px; font-weight: 700; font-variant-numeric: tabular-nums;
+      text-align: center; padding: 8px 0 4px; letter-spacing: .02em; line-height: 1;
+    }
+    .ta-timer-sublabel { text-align: center; color: #999; font-size: 11px; padding-bottom: 8px; }
+    .ta-timer-controls { display: flex; justify-content: center; gap: 8px; padding: 2px 0 4px; }
+    .ta-timer-adj {
+      background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px;
+      padding: 4px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+      color: #333; transition: background .1s;
+    }
+    .ta-timer-adj:hover { background: #e8e8e8; }
+    .ta-timer-adj:active { background: #ddd; }
+
+    /* Note card */
+    .ta-note-title-field {
+      font-size: 13px; font-weight: 600; border: none;
+      border-bottom: 1px solid #eee; padding: 2px 2px 4px; margin-bottom: 6px;
+      width: 100%; min-height: 20px; outline: none; user-select: text; cursor: text;
+      white-space: nowrap; overflow: hidden; word-break: break-all;
+    }
+    .ta-note-title-field:focus { border-bottom-color: #111; }
+    .ta-note-body-field {
+      display: block; width: 100%; min-height: 80px; max-height: 160px;
+      border: none; border-radius: 3px; font-size: 13px; font-family: inherit;
+      line-height: 1.5; color: #333; resize: vertical; outline: none;
+      background: transparent; padding: 2px; user-select: text;
+    }
+    .ta-note-body-field:focus { background: #fafafa; }
+    .ta-note-status { font-size: 10px; text-align: right; height: 14px; margin-top: 4px; color: #aaa; }
+
+    /* Chat card */
+    .ta-chat-log {
+      height: 240px; overflow-y: auto; display: flex;
+      flex-direction: column; gap: 6px; padding: 2px 0;
+    }
+    .ta-chat-log-bubble {
+      max-width: 92%; border-radius: 10px; padding: 6px 10px;
+      font-size: 12px; white-space: pre-wrap; word-break: break-word;
+      line-height: 1.4; user-select: text;
+    }
+    .ta-chat-log-bubble.user { background: #111; color: #fff; border-radius: 10px 10px 2px 10px; align-self: flex-end; }
+    .ta-chat-log-bubble.agent { background: #f0f0f0; color: #111; border-radius: 10px 10px 10px 2px; align-self: flex-start; }
+    .ta-chat-input-row {
+      display: flex; gap: 5px;
+      padding-top: 8px; border-top: 1px solid #eee; margin-top: 6px;
+    }
+    .ta-chat-textarea {
+      flex: 1; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px;
+      font-size: 12px; font-family: inherit; resize: none; outline: none; user-select: text;
+    }
+    .ta-chat-textarea:focus { border-color: #999; }
+    .ta-chat-send {
+      align-self: flex-end; background: #111; color: #fff; border: none;
+      border-radius: 4px; padding: 7px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;
+    }
+    .ta-chat-send:hover { background: #333; }
+    .ta-chat-send:disabled { opacity: .5; cursor: default; }
+
+    /* Card fade-out animation */
+    @keyframes ta-fadeout {
+      0%   { opacity: 1; transform: scale(1) translateY(0); }
+      100% { opacity: 0; transform: scale(0.93) translateY(6px); }
+    }
+    .ta-card-fading { animation: ta-fadeout 0.6s ease forwards; pointer-events: none; }
+
+    /* Nav widgets button */
+    #ta-widgets-btn {
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22);
+      color: #e0e0e0; border-radius: 4px; padding: 4px 11px; font-size: 13px;
+      cursor: pointer; white-space: nowrap; transition: background .15s;
+    }
+    #ta-widgets-btn:hover { background: rgba(255,255,255,.22); color: #fff; }
   </style>
 </head>
 <body>
+
+{% if request.state.current_user %}
+<script>
+/* Runs synchronously before first paint — avoids layout flash */
+(function() {
+  var k = 'ta_sb_{{ request.state.current_user.id }}';
+  if (localStorage.getItem(k) !== '0') document.body.classList.add('sb-expanded');
+})();
+</script>
+{% endif %}
+
   {% block nav %}
   <nav>
     <span class="brand">Team Agent</span>
@@ -120,56 +314,653 @@
       <a href="/tasks" style="position:relative;">
         Tasks
         {% if request.state.unread_count > 0 %}
-        <span style="
-          position:absolute;
-          top:-6px;
-          right:-14px;
-          background:#e74c3c;
-          color:#fff;
-          font-size:10px;
-          font-weight:700;
-          min-width:16px;
-          height:16px;
-          border-radius:8px;
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          padding:0 4px;
-          line-height:1;
-        ">{{ request.state.unread_count }}</span>
+        <span style="position:absolute;top:-6px;right:-14px;background:#e74c3c;color:#fff;font-size:10px;
+          font-weight:700;min-width:16px;height:16px;border-radius:8px;display:inline-flex;
+          align-items:center;justify-content:center;padding:0 4px;line-height:1;">{{ request.state.unread_count }}</span>
         {% endif %}
       </a>
       <a href="/chat">Chat</a>
       <a href="/dm" style="position:relative;">
         Messages
         {% if request.state.unread_dm_count > 0 %}
-        <span style="
-          position:absolute;
-          top:-6px;
-          right:-14px;
-          background:#e74c3c;
-          color:#fff;
-          font-size:10px;
-          font-weight:700;
-          min-width:16px;
-          height:16px;
-          border-radius:8px;
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          padding:0 4px;
-          line-height:1;
-        ">{{ request.state.unread_dm_count }}</span>
+        <span style="position:absolute;top:-6px;right:-14px;background:#e74c3c;color:#fff;font-size:10px;
+          font-weight:700;min-width:16px;height:16px;border-radius:8px;display:inline-flex;
+          align-items:center;justify-content:center;padding:0 4px;line-height:1;">{{ request.state.unread_dm_count }}</span>
         {% endif %}
       </a>
+      <button id="ta-widgets-btn" onclick="TaWidgets.toggleSidebar()">⊞ Widgets</button>
       <span class="spacer"></span>
       <span style="font-size:13px;color:#888">{{ request.state.current_user.nickname }}</span>
       <a href="/logout">Log out</a>
     {% endif %}
   </nav>
   {% endblock %}
+
   <div class="container">
     {% block content %}{% endblock %}
   </div>
+
+  {% if request.state.current_user %}
+  <div id="ta-cards-layer"></div>
+
+  <!-- Reopen tab (visible only when sidebar is collapsed) -->
+  <button id="ta-sb-reopen" onclick="TaWidgets.toggleSidebar()" title="Open Widgets">Widgets</button>
+
+  <div id="ta-sidebar">
+    <div id="ta-sidebar-header">
+      <span style="font-weight:600;font-size:14px;">Widgets</span>
+      <button onclick="TaWidgets.toggleSidebar()" style="
+        background:none;border:none;cursor:pointer;font-size:20px;color:#aaa;line-height:1;padding:0 2px;
+      " title="Collapse">‹</button>
+    </div>
+    <div id="ta-sidebar-body">
+      <!-- Chat mini-widget toggle -->
+      <div class="ta-sb-section-label">💬 Mini Chat</div>
+      <label class="ta-toggle-row" for="ta-chat-toggle">
+        <input type="checkbox" id="ta-chat-toggle">
+        <span class="ta-toggle-track"></span>
+        <span style="font-size:13px;font-weight:500;color:#333;">Pin chat widget</span>
+      </label>
+
+      <!-- Dynamic content (filled by JS on poll) -->
+      <div id="ta-sb-timers"></div>
+      <div id="ta-sb-notes"></div>
+      <div id="ta-sb-tasks"></div>
+      <div id="ta-sb-dms"></div>
+      <div id="ta-sb-empty" style="color:#bbb;font-size:13px;text-align:center;padding:32px 0;display:none;">
+        No active timers or notes.<br>Ask the agent to start one.
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const TaWidgets = (() => {
+    'use strict';
+
+    // ----------------------------------------------------------------- constants
+    const USER_ID      = "{{ request.state.current_user.id }}";
+    const LS_SB        = `ta_sb_${USER_ID}`;         // '0'=collapsed, else expanded
+    const LS_POS       = `ta_pos_${USER_ID}`;         // {id: {x,y}}
+    const LS_PINNED    = `ta_pinned_${USER_ID}`;      // [{kind,id,...}]
+    const LS_CHAT_SID  = `ta_chat_sid_${USER_ID}`;   // session_id string
+    const LS_CHAT_HIST = `ta_chat_hist_${USER_ID}`;  // [{role,text}]
+    const CHAT_ID      = '__chat__';
+    const STATUS_COLORS = { assigned:'#888', in_progress:'#2980b9', blocked:'#e67e22', done:'#27ae60' };
+
+    // -------------------------------------------------------------------- state
+    let lastData     = null;
+    let pinnedCards  = {};   // id -> { type, el, x, y, ...extra }
+    let cardPositions = {};  // id -> { x, y }
+    let activeDrag   = null;
+    let audioCtx     = null;
+    let firstPoll    = true; // cleanup stale restored timers on first poll
+
+    try { cardPositions = JSON.parse(localStorage.getItem(LS_POS) || '{}'); } catch(_) {}
+
+    // ------------------------------------------------------------------ helpers
+    function esc(s) {
+      return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function fmtTime(s) {
+      s = Math.max(0, Math.round(s));
+      const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+      return h > 0
+        ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+        : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    }
+    function beep() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+        o.frequency.value = 880;
+        g.gain.setValueAtTime(0.28, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.55);
+        o.start(); o.stop(audioCtx.currentTime + 0.55);
+      } catch(_) {}
+    }
+    function flashTitle(msg) {
+      const orig = document.title; let n = 0;
+      const iv = setInterval(() => {
+        document.title = (n++ % 2 === 0) ? msg : orig;
+        if (n > 8) { clearInterval(iv); document.title = orig; }
+      }, 500);
+    }
+
+    // --------------------------------------------------------------- sidebar
+    function isSidebarExpanded() { return document.body.classList.contains('sb-expanded'); }
+
+    function toggleSidebar() {
+      const nowExpanded = !isSidebarExpanded();
+      document.body.classList.toggle('sb-expanded', nowExpanded);
+      localStorage.setItem(LS_SB, nowExpanded ? '1' : '0');
+      if (nowExpanded && !lastData) poll();
+    }
+
+    // --------------------------------------------------------- sidebar render
+    function renderSidebar(data) {
+      _renderTimers(data.timers || []);
+      _renderNotes(data.notes  || []);
+      _renderTasks(data.tasks  || []);
+      _renderDMs(data.unread_dm_count || 0);
+      const hasContent = (data.timers||[]).length || (data.notes||[]).length
+                       || (data.tasks||[]).length  || data.unread_dm_count;
+      const emp = document.getElementById('ta-sb-empty');
+      if (emp) emp.style.display = hasContent ? 'none' : 'block';
+      // Sync chat toggle checkbox
+      const ct = document.getElementById('ta-chat-toggle');
+      if (ct) ct.checked = !!pinnedCards[CHAT_ID];
+    }
+
+    function _renderTimers(timers) {
+      const el = document.getElementById('ta-sb-timers');
+      if (!el) return;
+      const active = timers.filter(t => !t.cancelled);
+      if (!active.length) { el.innerHTML = ''; return; }
+      let html = `<div class="ta-sb-section-label">⏱ Timers</div>`;
+      for (const t of active) {
+        const rem = Math.max(0, (t.fires_at_ms - Date.now()) / 1000);
+        const sub = t.fired ? '✓ Done' : fmtTime(rem);
+        const subColor = t.fired ? '#27ae60' : '#777';
+        const pinLabel = pinnedCards[t.id] ? '✓' : 'Pin';
+        html += `<div class="ta-sb-row">
+          <div class="ta-sb-row-main">
+            <div class="ta-sb-row-title">${esc(t.label)}</div>
+            <div class="ta-sb-row-sub" id="ta-sb-t-${t.id}" style="color:${subColor};">${sub}</div>
+          </div>
+          <button class="ta-sb-pin-btn" data-tid="${t.id}">${pinLabel}</button>
+          <button class="ta-sb-del" data-tdel="${t.id}" title="Cancel timer">×</button>
+        </div>`;
+      }
+      el.innerHTML = html;
+      el.querySelectorAll('[data-tid]').forEach(b => b.addEventListener('click', () => pinTimerById(b.dataset.tid)));
+      el.querySelectorAll('[data-tdel]').forEach(b => b.addEventListener('click', () => _cancelTimer(b.dataset.tdel)));
+    }
+
+    function _renderNotes(notes) {
+      const el = document.getElementById('ta-sb-notes');
+      if (!el) return;
+      if (!notes.length) { el.innerHTML = ''; return; }
+      let html = `<div class="ta-sb-section-label">📝 Notes</div>`;
+      for (const n of notes) {
+        const pinLabel = pinnedCards[n.id] ? '✓' : 'Pin';
+        html += `<div class="ta-sb-row">
+          <div class="ta-sb-row-main"><div class="ta-sb-row-title">${esc(n.name)}</div></div>
+          <button class="ta-sb-pin-btn" data-nid="${n.id}">${pinLabel}</button>
+          <button class="ta-sb-del" data-ndel="${n.id}" title="Delete note">×</button>
+        </div>`;
+      }
+      el.innerHTML = html;
+      el.querySelectorAll('[data-nid]').forEach(b => b.addEventListener('click', () => pinNoteById(b.dataset.nid)));
+      el.querySelectorAll('[data-ndel]').forEach(b => b.addEventListener('click', () => _deleteNote(b.dataset.ndel)));
+    }
+
+    function _renderTasks(tasks) {
+      const el = document.getElementById('ta-sb-tasks');
+      if (!el) return;
+      if (!tasks.length) { el.innerHTML = ''; return; }
+      let html = `<div class="ta-sb-section-label">✅ Open Tasks</div>`;
+      for (const t of tasks) {
+        const color = STATUS_COLORS[t.status] || '#888';
+        html += `<a href="/tasks/${t.id}" class="ta-sb-task-link"><div class="ta-sb-row">
+          <div class="ta-sb-row-main">
+            <div class="ta-sb-row-title">${esc(t.title)}</div>
+            <div class="ta-sb-row-sub">${esc(t.assignee)}</div>
+          </div>
+          <span style="font-size:10px;font-weight:600;color:#fff;background:${color};border-radius:4px;padding:2px 6px;white-space:nowrap;flex-shrink:0;">
+            ${esc(t.status.replace('_',' '))}
+          </span>
+        </div></a>`;
+      }
+      el.innerHTML = html;
+    }
+
+    function _renderDMs(count) {
+      const el = document.getElementById('ta-sb-dms');
+      if (!el) return;
+      if (!count) { el.innerHTML = ''; return; }
+      el.innerHTML = `<a href="/dm" style="text-decoration:none;color:inherit;">
+        <div class="ta-sb-row" style="background:#fff8e1;border:1px solid #ffe082;">
+          <div class="ta-sb-row-main">
+            <div class="ta-sb-row-title">💬 ${count} unread message${count>1?'s':''}</div>
+          </div>
+        </div></a>`;
+    }
+
+    // ----------------------------------------------------------- timer tick
+    function tick() {
+      if (!lastData) return;
+      const now = Date.now();
+      for (const t of (lastData.timers || [])) {
+        if (t.fired || t.cancelled) continue;
+        const rem = Math.max(0, (t.fires_at_ms - now) / 1000);
+        const sbEl = document.getElementById(`ta-sb-t-${t.id}`);
+        if (sbEl) sbEl.textContent = fmtTime(rem);
+        _setTimerDisplay(t.id, rem, false);
+      }
+    }
+
+    function _setTimerDisplay(id, rem, done) {
+      const d = document.getElementById(`ta-card-timer-${id}`);
+      if (!d) return;
+      if (done) {
+        d.textContent = '✓ Done'; d.style.color = '#27ae60';
+        const card = pinnedCards[id];
+        if (card) { const c = card.el.querySelector('.ta-timer-controls'); if (c) c.style.display = 'none'; }
+      } else {
+        d.textContent = fmtTime(rem); d.style.color = rem <= 10 ? '#e74c3c' : '#111';
+      }
+    }
+
+    function _onTimerDone(id, t) {
+      beep();
+      flashTitle(`⏰ ${t.label} done!`);
+      _setTimerDisplay(id, 0, true);
+      const sbEl = document.getElementById(`ta-sb-t-${id}`);
+      if (sbEl) { sbEl.textContent = '✓ Done'; sbEl.style.color = '#27ae60'; }
+      const card = pinnedCards[id];
+      if (!card) return;
+      setTimeout(() => {
+        if (!pinnedCards[id]) return;
+        card.el.classList.add('ta-card-fading');
+        card.el.addEventListener('animationend', () => unpinCard(id), { once: true });
+      }, 2000);
+    }
+
+    // --------------------------------------------------------------- polling
+    async function poll() {
+      try {
+        const res = await fetch('/widgets/data');
+        if (!res.ok) return;
+        const data = await res.json();
+        lastData = data;
+        if (isSidebarExpanded()) renderSidebar(data);
+        for (const tid of (data.timers_just_completed || [])) {
+          const t = (data.timers || []).find(x => x.id === tid) || { label: 'Timer' };
+          _onTimerDone(tid, t);
+        }
+        // First-poll cleanup: unpin restored timers the server no longer knows about
+        if (firstPoll) {
+          firstPoll = false;
+          const liveIds = new Set((data.timers || []).map(t => t.id));
+          for (const [id, card] of Object.entries(pinnedCards)) {
+            if (card.type === 'timer' && !liveIds.has(id)) unpinCard(id);
+          }
+        }
+      } catch(_) {}
+    }
+
+    // --------------------------------------------------------- card creation
+    function _defaultPos() {
+      const n = Object.keys(pinnedCards).length;
+      return { x: 40 + n * 24, y: 80 + n * 24 };
+    }
+
+    function _makeCard(id, title, bodyHtml, extraHeaderHtml = '') {
+      const layer = document.getElementById('ta-cards-layer');
+      const pos = cardPositions[id] || _defaultPos();
+      const el = document.createElement('div');
+      el.className = 'ta-card';
+      el.style.left = `${pos.x}px`;
+      el.style.top  = `${pos.y}px`;
+      el.dataset.cardId = id;
+      el.innerHTML = `
+        <div class="ta-card-header">
+          <span class="ta-card-title">${title}</span>
+          ${extraHeaderHtml}
+          <button class="ta-card-close" data-close="${id}">×</button>
+        </div>
+        <div class="ta-card-body">${bodyHtml}</div>`;
+      el.querySelector('[data-close]').addEventListener('click', () => unpinCard(id));
+      // Drag only starts from header, not from buttons inside it
+      const header = el.querySelector('.ta-card-header');
+      header.addEventListener('mousedown', e => {
+        if (e.target.closest('[data-close]') || e.target.closest('.ta-card-hbtn')) return;
+        activeDrag = { id, el, ox: e.clientX - el.offsetLeft, oy: e.clientY - el.offsetTop };
+        el.style.zIndex = 9999;
+        e.preventDefault();
+      });
+      layer.appendChild(el);
+      return el;
+    }
+
+    document.addEventListener('mousemove', e => {
+      if (!activeDrag) return;
+      const { el, ox, oy, id } = activeDrag;
+      const x = Math.max(0, Math.min(window.innerWidth  - el.offsetWidth,  e.clientX - ox));
+      const y = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, e.clientY - oy));
+      el.style.left = `${x}px`; el.style.top = `${y}px`;
+      if (pinnedCards[id]) { pinnedCards[id].x = x; pinnedCards[id].y = y; }
+    });
+    document.addEventListener('mouseup', () => {
+      if (activeDrag) { activeDrag.el.style.zIndex = ''; activeDrag = null; _savePositions(); }
+    });
+
+    // ------------------------------------------------------------ pin/unpin
+    function pinTimerById(id) {
+      if (pinnedCards[id] || !lastData) return;
+      const t = (lastData.timers || []).find(x => x.id === id);
+      if (t) { _pinTimer(t); _savePinnedList(); _savePositions(); }
+    }
+
+    function pinNoteById(id) {
+      if (pinnedCards[id] || !lastData) return;
+      const n = (lastData.notes || []).find(x => x.id === id);
+      if (n) { _pinNote(n); _savePinnedList(); _savePositions(); }
+    }
+
+    function _pinTimer(t) {
+      const id  = t.id;
+      const rem = Math.max(0, (t.fires_at_ms - Date.now()) / 1000);
+      const body = `
+        <div class="ta-timer-display" id="ta-card-timer-${id}"
+             style="color:${t.fired ? '#27ae60' : rem<=10 ? '#e74c3c' : '#111'};">
+          ${t.fired ? '✓ Done' : fmtTime(rem)}
+        </div>
+        <div class="ta-timer-sublabel">${esc(t.label)}</div>
+        ${t.fired ? '' : `<div class="ta-timer-controls">
+          <button class="ta-timer-adj" data-delta="-60">−1m</button>
+          <button class="ta-timer-adj" data-delta="60">+1m</button>
+        </div>`}`;
+      const el = _makeCard(id, `⏱ ${esc(t.label)}`, body);
+      pinnedCards[id] = { type: 'timer', el,
+        x: parseInt(el.style.left), y: parseInt(el.style.top),
+        label: t.label, fires_at_ms: t.fires_at_ms  // stored for _savePinnedList when lastData=null
+      };
+      el.querySelectorAll('.ta-timer-adj').forEach(b =>
+        b.addEventListener('click', () => _adjustTimer(id, parseInt(b.dataset.delta))));
+    }
+
+    function _pinNote(n) {
+      const id = n.id;
+      const body = `
+        <div id="ta-note-title-${id}" class="ta-note-title-field"
+             contenteditable="true" spellcheck="false">${esc(n.name)}</div>
+        <textarea id="ta-note-body-${id}" class="ta-note-body-field">${esc(n.body)}</textarea>
+        <div id="ta-note-status-${id}" class="ta-note-status"></div>`;
+      const el = _makeCard(id, `📝 ${esc(n.name)}`, body);
+      pinnedCards[id] = { type: 'note', el, x: parseInt(el.style.left), y: parseInt(el.style.top) };
+      const titleEl = document.getElementById(`ta-note-title-${id}`);
+      const bodyEl  = document.getElementById(`ta-note-body-${id}`);
+      let saveTimer = null;
+      const sched = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => _saveNote(id, titleEl, bodyEl), 800); };
+      titleEl.addEventListener('input', sched);
+      bodyEl.addEventListener('input',  sched);
+      titleEl.addEventListener('blur',  () => { clearTimeout(saveTimer); _saveNote(id, titleEl, bodyEl); });
+      bodyEl.addEventListener('blur',   () => { clearTimeout(saveTimer); _saveNote(id, titleEl, bodyEl); });
+      titleEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); bodyEl.focus(); } });
+    }
+
+    function _pinChat() {
+      if (pinnedCards[CHAT_ID]) return;
+      const body = `
+        <div class="ta-chat-log" id="ta-chat-log"></div>
+        <div class="ta-chat-input-row">
+          <textarea class="ta-chat-textarea" id="ta-chat-textarea" rows="2"
+            placeholder="Message… (Enter to send)"></textarea>
+          <button class="ta-chat-send" id="ta-chat-send">Send</button>
+        </div>`;
+      const extraHeader = `<button class="ta-card-hbtn" id="ta-chat-reset-btn" title="Reset conversation">🔄</button>`;
+      const el = _makeCard(CHAT_ID, '💬 Chat', body, extraHeader);
+      el.style.width = '300px';
+      const pos = cardPositions[CHAT_ID] || { x: 60, y: 100 };
+      el.style.left = `${pos.x}px`;
+      el.style.top  = `${pos.y}px`;
+      pinnedCards[CHAT_ID] = { type: 'chat', el, x: pos.x, y: pos.y };
+      _attachChatWidget(el);
+      // Sync toggle
+      const ct = document.getElementById('ta-chat-toggle');
+      if (ct) ct.checked = true;
+    }
+
+    function unpinCard(id) {
+      if (!pinnedCards[id]) return;
+      pinnedCards[id].el.remove();
+      delete pinnedCards[id];
+      _savePinnedList();
+      _savePositions();
+      if (id === CHAT_ID) {
+        const ct = document.getElementById('ta-chat-toggle');
+        if (ct) ct.checked = false;
+      }
+    }
+
+    // ---------------------------------------------------------- persistence
+    function _savePositions() {
+      const out = {};
+      for (const [id, c] of Object.entries(pinnedCards)) out[id] = { x: c.x, y: c.y };
+      const merged = Object.assign({}, cardPositions, out);
+      localStorage.setItem(LS_POS, JSON.stringify(merged));
+      cardPositions = merged;
+    }
+
+    function _savePinnedList() {
+      const list = [];
+      for (const [id, c] of Object.entries(pinnedCards)) {
+        if (c.type === 'timer') {
+          // Prefer live data; fall back to what was stored in the card entry
+          const live = lastData ? (lastData.timers || []).find(x => x.id === id) : null;
+          list.push({ kind: 'timer', id,
+            label:      live ? live.label      : (c.label      || 'Timer'),
+            fires_at_ms: live ? live.fires_at_ms : (c.fires_at_ms || 0) });
+        } else if (c.type === 'note') {
+          const titleEl = document.getElementById(`ta-note-title-${id}`);
+          const bodyEl  = document.getElementById(`ta-note-body-${id}`);
+          list.push({ kind: 'note', id,
+            name: titleEl ? (titleEl.textContent || '').trim() : id,
+            body: bodyEl  ? bodyEl.value : '' });
+        } else if (c.type === 'chat') {
+          list.push({ kind: 'chat' });
+        }
+      }
+      localStorage.setItem(LS_PINNED, JSON.stringify(list));
+    }
+
+    function _restoreFromStorage() {
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(LS_PINNED) || '[]'); } catch(_) {}
+      for (const entry of list) {
+        if (entry.kind === 'timer') {
+          _pinTimer({ id: entry.id, label: entry.label || 'Timer',
+            fires_at_ms: entry.fires_at_ms || 0, fired: false });
+        } else if (entry.kind === 'note') {
+          _pinNote({ id: entry.id, name: entry.name || '', body: entry.body || '' });
+        } else if (entry.kind === 'chat') {
+          _pinChat();
+        }
+      }
+      // Single save after all cards are restored (avoids N saves with stale lastData)
+      _savePinnedList();
+      _savePositions();
+    }
+
+    // ------------------------------------------------------- chat widget
+    function _chatNewSid() {
+      const sid = crypto.randomUUID();
+      localStorage.setItem(LS_CHAT_SID, sid);
+      return sid;
+    }
+
+    function _chatBubble(log, role, text) {
+      const b = document.createElement('div');
+      b.className = `ta-chat-log-bubble ${role}`;
+      b.dataset.role = role;
+      b.textContent = text;
+      log.appendChild(b);
+      log.scrollTop = log.scrollHeight;
+      return b;
+    }
+
+    function _chatSaveHist(log) {
+      const hist = [];
+      let count = 0;
+      for (const b of log.querySelectorAll('[data-role]')) {
+        if (++count > 100) break;
+        hist.push({ role: b.dataset.role, text: b.textContent });
+      }
+      localStorage.setItem(LS_CHAT_HIST, JSON.stringify(hist));
+    }
+
+    function _attachChatWidget(el) {
+      const log      = el.querySelector('#ta-chat-log');
+      const input    = el.querySelector('#ta-chat-textarea');
+      const sendBtn  = el.querySelector('#ta-chat-send');
+      const resetBtn = el.querySelector('#ta-chat-reset-btn');
+
+      // Replay stored display history
+      const hist = JSON.parse(localStorage.getItem(LS_CHAT_HIST) || '[]');
+      for (const m of hist) _chatBubble(log, m.role, m.text);
+
+      let busy = false;
+
+      async function send() {
+        const q = input.value.trim();
+        if (!q || busy) return;
+        busy = true; input.value = '';
+        sendBtn.textContent = '…'; sendBtn.disabled = true;
+        _chatBubble(log, 'user', q);
+        _chatSaveHist(log);
+        const thinking = _chatBubble(log, 'agent', 'Thinking…');
+        thinking.style.opacity = '0.5';
+        const sid = localStorage.getItem(LS_CHAT_SID) || _chatNewSid();
+        try {
+          const res = await fetch('/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sid, question: q }),
+          });
+          let data = {};
+          try { data = await res.json(); } catch(_) {}
+          if (!res.ok) {
+            thinking.textContent = 'Error: ' + (data.error || `Server ${res.status}`);
+            thinking.style.color = '#e74c3c';
+          } else {
+            thinking.textContent = data.answer || data.error || '(no response)';
+            thinking.style.opacity = '';
+            if (data.session_id) localStorage.setItem(LS_CHAT_SID, data.session_id);
+          }
+        } catch(_) {
+          thinking.textContent = 'Error: could not reach server.';
+          thinking.style.color = '#e74c3c';
+        }
+        _chatSaveHist(log);
+        busy = false; sendBtn.textContent = 'Send'; sendBtn.disabled = false;
+      }
+
+      sendBtn.addEventListener('click', send);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+      });
+
+      if (resetBtn) {
+        resetBtn.addEventListener('click', async () => {
+          const sid = localStorage.getItem(LS_CHAT_SID);
+          if (sid) {
+            try {
+              await fetch('/reset', { method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sid }) });
+            } catch(_) {}
+          }
+          _chatNewSid();
+          localStorage.removeItem(LS_CHAT_HIST);
+          log.innerHTML = '';
+        });
+      }
+    }
+
+    // ----------------------------------------------------------- mutations
+    async function _saveNote(id, titleEl, bodyEl) {
+      if (!pinnedCards[id]) return;
+      const name = (titleEl.textContent || '').trim(), body = bodyEl.value;
+      if (!name) return;
+      const statusEl = document.getElementById(`ta-note-status-${id}`);
+      if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.style.color = '#aaa'; }
+      try {
+        const res = await fetch(`/widgets/notes/${id}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, body }) });
+        const data = await res.json();
+        if (res.ok) {
+          if (statusEl) { statusEl.textContent = 'Saved ✓'; statusEl.style.color = '#27ae60'; }
+          setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000);
+          if (lastData && lastData.notes) {
+            const e = lastData.notes.find(x => x.id === id);
+            if (e) { e.name = data.name || name; e.body = body; }
+          }
+          const card = pinnedCards[id];
+          if (card) { const s = card.el.querySelector('.ta-card-title'); if (s) s.textContent = `📝 ${data.name || name}`; }
+        } else {
+          if (statusEl) { statusEl.textContent = `Failed: ${data.error || res.status}`; statusEl.style.color = '#e74c3c'; }
+        }
+      } catch(_) { if (statusEl) { statusEl.textContent = 'Failed (network)'; statusEl.style.color = '#e74c3c'; } }
+    }
+
+    async function _adjustTimer(id, delta) {
+      try {
+        const res = await fetch(`/widgets/timers/${id}/adjust`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delta_seconds: delta }) });
+        const data = await res.json();
+        if (!res.ok) return;
+        if (lastData) {
+          const e = (lastData.timers||[]).find(x => x.id === id);
+          if (e) { e.fires_at_ms = data.fires_at_ms; if (data.fired) { e.fired = true; _onTimerDone(id, e); } }
+        }
+        // Also update stored fires_at_ms in card entry
+        if (pinnedCards[id]) pinnedCards[id].fires_at_ms = data.fires_at_ms;
+      } catch(_) {}
+    }
+
+    async function _deleteNote(id) {
+      if (!confirm('Delete this note? This cannot be undone.')) return;
+      try {
+        const res = await fetch(`/widgets/notes/${id}/delete`, { method: 'POST' });
+        if (!res.ok) return;
+        if (lastData && lastData.notes) lastData.notes = lastData.notes.filter(n => n.id !== id);
+        if (pinnedCards[id]) unpinCard(id);
+        _renderNotes(lastData ? (lastData.notes || []) : []);
+        if (lastData) renderSidebar(lastData);
+      } catch(_) {}
+    }
+
+    async function _cancelTimer(id) {
+      if (!confirm('Cancel this timer?')) return;
+      try {
+        const res = await fetch(`/widgets/timers/${id}/cancel`, { method: 'POST' });
+        if (!res.ok) return;
+        if (lastData && lastData.timers) lastData.timers = lastData.timers.filter(t => t.id !== id);
+        if (pinnedCards[id]) unpinCard(id);
+        if (lastData) renderSidebar(lastData);
+      } catch(_) {}
+    }
+
+    // -------------------------------------------------------------- init
+    function init() {
+      // Restore pinned cards synchronously from localStorage (no poll wait)
+      _restoreFromStorage();
+
+      // Wire chat toggle checkbox
+      const ct = document.getElementById('ta-chat-toggle');
+      if (ct) {
+        ct.checked = !!pinnedCards[CHAT_ID];
+        ct.addEventListener('change', () => {
+          if (ct.checked) { _pinChat(); _savePinnedList(); _savePositions(); }
+          else unpinCard(CHAT_ID);
+        });
+      }
+
+      // Kick off polling
+      poll();
+      setInterval(poll, 2000);
+      setInterval(tick, 500);
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    return { toggleSidebar, pinTimerById, pinNoteById };
+  })();
+  </script>
+  {% endif %}
 </body>
 </html>

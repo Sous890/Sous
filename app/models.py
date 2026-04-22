@@ -165,3 +165,31 @@ class DirectMessage(Base):
 
     sender = relationship("User", foreign_keys=[sender_id], backref="sent_messages")
     recipient = relationship("User", foreign_keys=[recipient_id], backref="received_messages")
+
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(Text, nullable=False)
+    body = Column(Text, nullable=False, default="")
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now)
+
+    owner = relationship("User", foreign_keys=[owner_id], backref="notes")
+
+
+class Timer(Base):
+    __tablename__ = "timers"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    label = Column(Text, nullable=True)
+    duration_seconds = Column(Integer, nullable=False)
+    started_at = Column(DateTime(timezone=True), default=_now)
+    fires_at = Column(DateTime(timezone=True), nullable=False)
+    fired = Column(Boolean, nullable=False, default=False)
+    cancelled = Column(Boolean, nullable=False, default=False)
+
+    owner = relationship("User", foreign_keys=[owner_id], backref="timers")

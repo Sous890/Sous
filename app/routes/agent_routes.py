@@ -60,10 +60,13 @@ def ask(request: Request, body: AskBody, db: Session = Depends(get_session)):
     key = (user.id, session_id)
     history = _HISTORIES.get(key, [])
 
-    answer, updated = agent_loop.ask(user, body.question.strip(), history, db)
-    _HISTORIES[key] = updated
-
-    return {"session_id": session_id, "answer": answer}
+    try:
+        answer, updated = agent_loop.ask(user, body.question.strip(), history, db)
+        _HISTORIES[key] = updated
+        return {"session_id": session_id, "answer": answer}
+    except Exception as exc:
+        # Surface the real error to the client instead of a generic 500
+        return JSONResponse({"error": str(exc)}, status_code=500)
 
 
 # ---------------------------------------------------------------------------

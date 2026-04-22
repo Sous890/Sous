@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import SESSION_SECRET
 from app.db import get_session as _get_db
 from app import auth as auth_mod
-from app.routes import auth_routes, admin_routes, root_routes, task_routes, dm_routes, agent_routes
+from app.routes import auth_routes, admin_routes, root_routes, task_routes, dm_routes, agent_routes, widget_routes
 from app import notifications as notif_mod
 
 app = FastAPI(title="Team Agent")
@@ -40,3 +40,4 @@ app.include_router(admin_routes.router)
 app.include_router(task_routes.router)
 app.include_router(dm_routes.router)
 app.include_router(agent_routes.router)
+app.include_router(widget_routes.router)

@@ -55,6 +55,7 @@ def ask(user: User, question: str, history: list, db: Session) -> tuple[str, lis
 
     Returns (final_text, updated_history).
     history is a list of Anthropic-format message dicts.
+    Raises RuntimeError on API / unexpected errors so the caller can surface them.
     """
     client = _get_client()
     tool_list = tools_for(user)
@@ -72,7 +73,10 @@ def ask(user: User, question: str, history: list, db: Session) -> tuple[str, lis
         if tool_list:
             kwargs["tools"] = tool_list
 
-        response = client.messages.create(**kwargs)
+        try:
+            response = client.messages.create(**kwargs)
+        except Exception as exc:
+            raise RuntimeError(f"Anthropic API error: {exc}") from exc
 
         # Append assistant turn as-is
         history.append({"role": "assistant", "content": response.content})

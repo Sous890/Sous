@@ -16,6 +16,16 @@ from app.agent.tools import (
     CREATE_TASK_TOOL,
     ASSIGN_TASK_TOOL,
     SEND_DM_TOOL,
+    LIST_USERS_TOOL,
+    CREATE_NOTE_TOOL,
+    LIST_MY_NOTES_TOOL,
+    READ_NOTE_TOOL,
+    UPDATE_NOTE_TOOL,
+    DELETE_NOTE_TOOL,
+    SEND_NOTE_TOOL,
+    START_TIMER_TOOL,
+    LIST_TIMERS_TOOL,
+    CANCEL_TIMER_TOOL,
 )
 
 
@@ -30,6 +40,16 @@ def tools_for(user: User) -> list[dict]:
             CREATE_TASK_TOOL,
             ASSIGN_TASK_TOOL,
             SEND_DM_TOOL,
+            LIST_USERS_TOOL,
+            CREATE_NOTE_TOOL,
+            LIST_MY_NOTES_TOOL,
+            READ_NOTE_TOOL,
+            UPDATE_NOTE_TOOL,
+            DELETE_NOTE_TOOL,
+            SEND_NOTE_TOOL,
+            START_TIMER_TOOL,
+            LIST_TIMERS_TOOL,
+            CANCEL_TIMER_TOOL,
         ]
 
     caps = user.permission_set()
@@ -45,5 +65,17 @@ def tools_for(user: User) -> list[dict]:
         tools.append(ADD_COMMENT_TOOL)
     if "dm_coordinator" in caps:
         tools.append(SEND_DM_TOOL)
+    if "create_note" in caps:
+        tools.append(CREATE_NOTE_TOOL)
+        tools.append(LIST_MY_NOTES_TOOL)
+        tools.append(READ_NOTE_TOOL)
+        tools.append(UPDATE_NOTE_TOOL)
+        tools.append(DELETE_NOTE_TOOL)
+    if "create_note" in caps and "dm_coordinator" in caps:
+        tools.append(SEND_NOTE_TOOL)
+    if "start_timer" in caps:
+        tools.append(START_TIMER_TOOL)
+        tools.append(LIST_TIMERS_TOOL)
+        tools.append(CANCEL_TIMER_TOOL)
 
     return tools

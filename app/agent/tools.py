@@ -9,11 +9,11 @@ On permission failure: return {"error": "..."} — never raise inside a tool.
 The model reads the error and explains it to the user.
 """
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.models import DirectMessage, Task, TaskComment, User, TASK_STATUSES
+from app.models import DirectMessage, Note, Task, TaskComment, Timer, User, TASK_STATUSES
 from app.permissions import CAPABILITIES
 
 # ---------------------------------------------------------------------------
@@ -118,6 +118,136 @@ SEND_DM_TOOL = {
             "body": {"type": "string", "description": "Message text."},
         },
         "required": ["recipient_id", "body"],
+    },
+}
+
+LIST_USERS_TOOL = {
+    "name": "list_users",
+    "description": (
+        "List all active users in the system with their ID, username, nickname, and role. "
+        "Useful when you need to find a user's ID for DMs, task assignment, or sending notes. "
+        "Admin only."
+    ),
+    "input_schema": {"type": "object", "properties": {}, "required": []},
+}
+
+CREATE_NOTE_TOOL = {
+    "name": "create_note",
+    "description": (
+        "Create a new personal note. Notes are private to you unless sent to someone. "
+        "The name must be unique among your notes."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Short title / name for the note."},
+            "body": {"type": "string", "description": "Note content."},
+        },
+        "required": ["name"],
+    },
+}
+
+LIST_MY_NOTES_TOOL = {
+    "name": "list_my_notes",
+    "description": "List all your notes. Returns note IDs, names, and creation dates.",
+    "input_schema": {"type": "object", "properties": {}, "required": []},
+}
+
+READ_NOTE_TOOL = {
+    "name": "read_note",
+    "description": "Read the full body of one of your notes by its ID or name.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "note_id": {"type": "string", "description": "UUID of the note (preferred)."},
+            "name": {"type": "string", "description": "Note name (used if note_id omitted)."},
+        },
+        "required": [],
+    },
+}
+
+UPDATE_NOTE_TOOL = {
+    "name": "update_note",
+    "description": "Replace the body of an existing note. You can also rename it.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "note_id": {"type": "string", "description": "UUID of the note."},
+            "body": {"type": "string", "description": "New body content."},
+            "name": {"type": "string", "description": "New name (optional rename)."},
+        },
+        "required": ["note_id"],
+    },
+}
+
+DELETE_NOTE_TOOL = {
+    "name": "delete_note",
+    "description": "Permanently delete one of your notes.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "note_id": {"type": "string", "description": "UUID of the note to delete."},
+        },
+        "required": ["note_id"],
+    },
+}
+
+SEND_NOTE_TOOL = {
+    "name": "send_note",
+    "description": (
+        "Send the contents of one of your notes to another user as a direct message. "
+        "Workers can only send to the coordinator (admin). Admin can send to anyone."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "note_id": {"type": "string", "description": "UUID of the note to send."},
+            "recipient_id": {"type": "string", "description": "UUID of the recipient user."},
+        },
+        "required": ["note_id", "recipient_id"],
+    },
+}
+
+START_TIMER_TOOL = {
+    "name": "start_timer",
+    "description": (
+        "Start a countdown timer. Specify duration in minutes (or seconds). "
+        "The timer tracks when it will fire server-side. You can check it with list_timers."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "duration_minutes": {
+                "type": "number",
+                "description": "How long to count down in minutes.",
+            },
+            "label": {
+                "type": "string",
+                "description": "Optional label to remember what this timer is for.",
+            },
+        },
+        "required": ["duration_minutes"],
+    },
+}
+
+LIST_TIMERS_TOOL = {
+    "name": "list_timers",
+    "description": (
+        "List your active (non-cancelled, non-fired) timers. "
+        "Shows label, time remaining, and whether each has fired."
+    ),
+    "input_schema": {"type": "object", "properties": {}, "required": []},
+}
+
+CANCEL_TIMER_TOOL = {
+    "name": "cancel_timer",
+    "description": "Cancel an active timer so it no longer counts down.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "timer_id": {"type": "string", "description": "UUID of the timer to cancel."},
+        },
+        "required": ["timer_id"],
     },
 }
 
@@ -283,6 +413,190 @@ def impl_send_dm(user: User, db: Session, recipient_id: str, body: str, **kwargs
 
 
 # ---------------------------------------------------------------------------
+# New tool implementations
+# ---------------------------------------------------------------------------
+
+def impl_list_users(user: User, db: Session, **kwargs) -> dict:
+    if user.role != "admin":
+        return {"error": "Permission denied: only admins can list all users."}
+    users = db.query(User).filter(User.is_active == True).order_by(User.nickname).all()
+    return {
+        "users": [
+            {"id": u.id, "username": u.username, "nickname": u.nickname, "role": u.role}
+            for u in users
+        ],
+        "count": len(users),
+    }
+
+
+def impl_create_note(user: User, db: Session, name: str, body: str = "", **kwargs) -> dict:
+    if user.role != "admin" and not user.has_capability("create_note"):
+        return {"error": "Permission denied: you need create_note capability."}
+    name = name.strip()
+    if not name:
+        return {"error": "Note name cannot be empty."}
+    existing = db.query(Note).filter(Note.owner_id == user.id, Note.name == name).first()
+    if existing:
+        return {"error": f"You already have a note named '{name}'. Choose a different name or update the existing one."}
+    note = Note(owner_id=user.id, name=name, body=body.strip())
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return {"created": True, "note_id": note.id, "name": note.name}
+
+
+def impl_list_my_notes(user: User, db: Session, **kwargs) -> dict:
+    if user.role != "admin" and not user.has_capability("create_note"):
+        return {"error": "Permission denied: you need create_note capability."}
+    notes = db.query(Note).filter(Note.owner_id == user.id).order_by(Note.updated_at.desc()).all()
+    return {
+        "notes": [
+            {"id": n.id, "name": n.name, "updated_at": str(n.updated_at)}
+            for n in notes
+        ],
+        "count": len(notes),
+    }
+
+
+def impl_read_note(user: User, db: Session, note_id: str = "", name: str = "", **kwargs) -> dict:
+    if user.role != "admin" and not user.has_capability("create_note"):
+        return {"error": "Permission denied: you need create_note capability."}
+    if note_id:
+        note = db.query(Note).filter(Note.id == note_id, Note.owner_id == user.id).first()
+    elif name:
+        note = db.query(Note).filter(Note.name == name.strip(), Note.owner_id == user.id).first()
+    else:
+        return {"error": "Provide note_id or name."}
+    if not note:
+        return {"error": "Note not found."}
+    return {"note_id": note.id, "name": note.name, "body": note.body, "updated_at": str(note.updated_at)}
+
+
+def impl_update_note(user: User, db: Session, note_id: str, body: str = None, name: str = None, **kwargs) -> dict:
+    if user.role != "admin" and not user.has_capability("create_note"):
+        return {"error": "Permission denied: you need create_note capability."}
+    note = db.query(Note).filter(Note.id == note_id, Note.owner_id == user.id).first()
+    if not note:
+        return {"error": "Note not found."}
+    if body is not None:
+        note.body = body
+    if name is not None:
+        name = name.strip()
+        if name:
+            note.name = name
+    note.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"updated": True, "note_id": note.id, "name": note.name}
+
+
+def impl_delete_note(user: User, db: Session, note_id: str, **kwargs) -> dict:
+    if user.role != "admin" and not user.has_capability("create_note"):
+        return {"error": "Permission denied: you need create_note capability."}
+    note = db.query(Note).filter(Note.id == note_id, Note.owner_id == user.id).first()
+    if not note:
+        return {"error": "Note not found."}
+    name = note.name
+    db.delete(note)
+    db.commit()
+    return {"deleted": True, "note_id": note_id, "name": name}
+
+
+def impl_send_note(user: User, db: Session, note_id: str, recipient_id: str, **kwargs) -> dict:
+    if user.role != "admin" and not user.has_capability("create_note"):
+        return {"error": "Permission denied: you need create_note capability."}
+    if user.role != "admin" and not user.has_capability("dm_coordinator"):
+        return {"error": "Permission denied: you need dm_coordinator to send notes to others."}
+
+    note = db.query(Note).filter(Note.id == note_id, Note.owner_id == user.id).first()
+    if not note:
+        return {"error": "Note not found."}
+
+    recipient = db.get(User, recipient_id)
+    if not recipient:
+        return {"error": f"Recipient {recipient_id} not found."}
+
+    if user.role != "admin" and recipient.role != "admin":
+        return {"error": "Permission denied: workers can only send to the coordinator."}
+
+    body = f"📄 Note from {user.nickname}: **{note.name}**\n\n{note.body}"
+    msg = DirectMessage(sender_id=user.id, recipient_id=recipient_id, body=body)
+    db.add(msg)
+    db.commit()
+    return {"sent": True, "note_name": note.name, "to": recipient.nickname}
+
+
+def impl_start_timer(user: User, db: Session, duration_minutes: float, label: str = "", **kwargs) -> dict:
+    if user.role != "admin" and not user.has_capability("start_timer"):
+        return {"error": "Permission denied: you need start_timer capability."}
+    if duration_minutes <= 0:
+        return {"error": "Duration must be greater than 0."}
+    if duration_minutes > 1440:
+        return {"error": "Duration cannot exceed 24 hours (1440 minutes)."}
+
+    duration_seconds = int(duration_minutes * 60)
+    now = datetime.now(timezone.utc)
+    fires_at = now + timedelta(seconds=duration_seconds)
+
+    timer = Timer(
+        owner_id=user.id,
+        label=label.strip() or None,
+        duration_seconds=duration_seconds,
+        started_at=now,
+        fires_at=fires_at,
+    )
+    db.add(timer)
+    db.commit()
+    db.refresh(timer)
+    return {
+        "started": True,
+        "timer_id": timer.id,
+        "label": timer.label or "(no label)",
+        "duration_minutes": duration_minutes,
+        "fires_at": fires_at.strftime("%H:%M:%S UTC"),
+    }
+
+
+def impl_list_timers(user: User, db: Session, **kwargs) -> dict:
+    if user.role != "admin" and not user.has_capability("start_timer"):
+        return {"error": "Permission denied: you need start_timer capability."}
+    now = datetime.now(timezone.utc)
+    timers = (
+        db.query(Timer)
+        .filter(Timer.owner_id == user.id, Timer.cancelled == False)
+        .order_by(Timer.fires_at)
+        .all()
+    )
+    result = []
+    for t in timers:
+        fires_at = t.fires_at
+        if fires_at.tzinfo is None:
+            fires_at = fires_at.replace(tzinfo=timezone.utc)
+        remaining = (fires_at - now).total_seconds()
+        result.append({
+            "timer_id": t.id,
+            "label": t.label or "(no label)",
+            "fired": t.fired,
+            "fires_at": fires_at.strftime("%H:%M:%S UTC"),
+            "seconds_remaining": max(0, int(remaining)),
+            "minutes_remaining": round(max(0, remaining) / 60, 1),
+        })
+    return {"timers": result, "count": len(result)}
+
+
+def impl_cancel_timer(user: User, db: Session, timer_id: str, **kwargs) -> dict:
+    if user.role != "admin" and not user.has_capability("start_timer"):
+        return {"error": "Permission denied: you need start_timer capability."}
+    timer = db.query(Timer).filter(Timer.id == timer_id, Timer.owner_id == user.id).first()
+    if not timer:
+        return {"error": "Timer not found."}
+    if timer.cancelled:
+        return {"error": "Timer is already cancelled."}
+    timer.cancelled = True
+    db.commit()
+    return {"cancelled": True, "timer_id": timer_id, "label": timer.label or "(no label)"}
+
+
+# ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 
@@ -294,6 +608,16 @@ IMPL_MAP = {
     "create_task": impl_create_task,
     "assign_task": impl_assign_task,
     "send_dm": impl_send_dm,
+    "list_users": impl_list_users,
+    "create_note": impl_create_note,
+    "list_my_notes": impl_list_my_notes,
+    "read_note": impl_read_note,
+    "update_note": impl_update_note,
+    "delete_note": impl_delete_note,
+    "send_note": impl_send_note,
+    "start_timer": impl_start_timer,
+    "list_timers": impl_list_timers,
+    "cancel_timer": impl_cancel_timer,
 }
 
 
