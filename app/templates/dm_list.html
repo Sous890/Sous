@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Messages — Team Agent{% endblock %}
+{% block content %}
+<h1>Messages</h1>
+
+{% if error is defined and error %}
+<div class="flash-error">{{ error }}</div>
+{% endif %}
+
+{% if threads is defined and threads %}
+<table>
+  <thead>
+    <tr>
+      <th>Person</th>
+      <th>Latest message</th>
+      <th>When</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in threads %}
+    <tr>
+      <td>
+        <strong>{{ t.other_user.nickname }}</strong>
+        <span style="color:#aaa;font-size:12px;margin-left:6px;">{{ t.other_user.username }}</span>
+        {% if t.unread > 0 %}
+        <span style="
+          display:inline-block;
+          background:#e74c3c;
+          color:#fff;
+          font-size:10px;
+          font-weight:700;
+          min-width:16px;
+          height:16px;
+          border-radius:8px;
+          text-align:center;
+          line-height:16px;
+          padding:0 4px;
+          margin-left:6px;
+        ">{{ t.unread }}</span>
+        {% endif %}
+      </td>
+      <td style="color:#555;font-size:13px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        {% if t.latest %}
+          {% if t.latest.sender_id == current_user.id %}
+            <span style="color:#aaa;">You: </span>
+          {% endif %}
+          {{ t.latest.body[:80] }}{% if t.latest.body|length > 80 %}…{% endif %}
+        {% endif %}
+      </td>
+      <td style="color:#aaa;font-size:12px;white-space:nowrap;">
+        {{ t.latest.created_at.strftime('%b %d, %H:%M') if t.latest and t.latest.created_at else '—' }}
+      </td>
+      <td>
+        <a href="/dm/{{ t.other_user.id }}" class="btn btn-sm btn-outline">Open</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% elif threads is defined %}
+<div class="card" style="text-align:center;color:#888;padding:48px 20px;">
+  <p style="font-size:16px;">No messages yet.</p>
+  <p style="font-size:14px;margin-top:8px;">Messages will appear here when workers send you a DM.</p>
+</div>
+{% endif %}
+{% endblock %}

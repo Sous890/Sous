@@ -151,3 +151,17 @@ class TaskView(Base):
         primary_key=True, nullable=False,
     )
     last_seen_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class DirectMessage(Base):
+    __tablename__ = "direct_messages"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    sender_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    recipient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    read_at = Column(DateTime(timezone=True), nullable=True)  # NULL = unread
+
+    sender = relationship("User", foreign_keys=[sender_id], backref="sent_messages")
+    recipient = relationship("User", foreign_keys=[recipient_id], backref="received_messages")

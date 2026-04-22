@@ -1,13 +1,13 @@
 """
 Notification helpers.
 
-Currently: unread task comment counts.
-Future: DM unread counts (Stage C).
+Stage B: unread task comment counts.
+Stage C: unread DM counts.
 """
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_
 
-from app.models import Task, TaskComment, TaskView, User
+from app.models import DirectMessage, Task, TaskComment, TaskView, User
 
 
 def unread_task_count(user: User, db: Session) -> int:
@@ -54,6 +54,22 @@ def unread_task_count(user: User, db: Session) -> int:
                 TaskView.last_seen_at == None,                          # never visited
                 TaskView.last_seen_at < latest_comment.c.latest_at,    # visited but stale
             )
+        )
+        .scalar()
+    )
+    return count or 0
+
+
+def unread_dm_count(user: User, db: Session) -> int:
+    """Count of DMs where recipient=user and read_at IS NULL."""
+    if user is None:
+        return 0
+    count = (
+        db.query(func.count())
+        .select_from(DirectMessage)
+        .filter(
+            DirectMessage.recipient_id == user.id,
+            DirectMessage.read_at == None,  # noqa: E711
         )
         .scalar()
     )
