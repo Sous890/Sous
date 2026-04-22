@@ -95,4 +95,42 @@
   </div>
 
 </div>
+
+<!-- Comments -->
+<div style="margin-top:28px;">
+  <h2 style="margin-bottom:16px;">Comments {% if task.comments %}({{ task.comments|length }}){% endif %}</h2>
+
+  {% if task.comments %}
+    {% for comment in task.comments %}
+    <div style="background:#fff;border:1px solid #e5e5e5;border-radius:6px;padding:14px 18px;margin-bottom:12px;">
+      <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:6px;">
+        <strong style="font-size:14px;">{{ comment.author.nickname }}</strong>
+        <span style="color:#aaa;font-size:12px;">{{ comment.created_at.strftime('%b %d, %Y at %H:%M') if comment.created_at else '' }}</span>
+      </div>
+      <p style="white-space:pre-wrap;font-size:14px;color:#333;margin:0;">{{ comment.body }}</p>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p style="color:#aaa;font-size:14px;margin-bottom:16px;">No comments yet.</p>
+  {% endif %}
+
+  {% set can_comment = current_user.role == 'admin' or (
+      task.assignee_id == current_user.id and
+      'comment_on_own_tasks' in current_user.permission_set()
+  ) %}
+
+  {% if can_comment %}
+  <div style="background:#fff;border:1px solid #e5e5e5;border-radius:6px;padding:16px 18px;margin-top:8px;">
+    <form method="post" action="/tasks/{{ task.id }}/comments">
+      <div class="form-group" style="margin-bottom:10px;">
+        <label style="font-size:13px;font-weight:500;">Add a comment</label>
+        <textarea name="body" rows="3" required
+                  style="width:100%;margin-top:4px;padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;font-family:inherit;resize:vertical;"
+                  placeholder="Write a comment…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-sm">Post comment</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
 {% endblock %}

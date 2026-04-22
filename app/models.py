@@ -115,3 +115,24 @@ class Task(Base):
     creator = relationship(
         "User", foreign_keys=[created_by_id], backref="created_tasks"
     )
+    comments = relationship(
+        "TaskComment",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskComment.created_at",
+    )
+
+
+class TaskComment(Base):
+    __tablename__ = "task_comments"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    task_id = Column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    task = relationship("Task", back_populates="comments")
+    author = relationship("User", foreign_keys=[author_id])

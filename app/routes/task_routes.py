@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.models import Task, User, TASK_STATUSES, TASK_STATUS_COLORS
+from app.models import Task, TaskComment, User, TASK_STATUSES, TASK_STATUS_COLORS
 from app.permissions import require, require_admin
 
 router = APIRouter(prefix="/tasks")
@@ -234,3 +234,42 @@ def delete_task(
     db.delete(task)
     db.commit()
     return RedirectResponse(url="/tasks", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# POST /tasks/{id}/comments  — add a comment
+# ---------------------------------------------------------------------------
+
+@router.post("/{task_id}/comments")
+def add_comment(
+    request: Request,
+    task_id: str,
+    body: str = Form(...),
+    db: Session = Depends(get_session),
+):
+    user = request.state.current_user
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    task = db.get(Task, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if user.role != "admin":
+        # Worker needs the capability AND must be the assignee
+        require(user, "comment_on_own_tasks")
+        if task.assignee_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only comment on your own tasks")
+
+    body = body.strip()
+    if not body:
+        raise HTTPException(status_code=400, detail="Comment cannot be empty")
+
+    comment = TaskComment(
+        task_id=task_id,
+        author_id=user.id,
+        body=body,
+    )
+    db.add(comment)
+    db.commit()
+    return RedirectResponse(url=f"/tasks/{task_id}", status_code=303)
