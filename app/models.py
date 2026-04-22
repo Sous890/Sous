@@ -136,3 +136,18 @@ class TaskComment(Base):
 
     task = relationship("Task", back_populates="comments")
     author = relationship("User", foreign_keys=[author_id])
+
+
+class TaskView(Base):
+    """Tracks when each user last viewed each task — used for unread badge counts."""
+    __tablename__ = "task_views"
+
+    user_id = Column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True, nullable=False,
+    )
+    task_id = Column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"),
+        primary_key=True, nullable=False,
+    )
+    last_seen_at = Column(DateTime(timezone=True), nullable=False)

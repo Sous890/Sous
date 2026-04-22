@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.models import Task, TaskComment, User, TASK_STATUSES, TASK_STATUS_COLORS
+from app.models import Task, TaskComment, TaskView, User, TASK_STATUSES, TASK_STATUS_COLORS
 from app.permissions import require, require_admin
 
 router = APIRouter(prefix="/tasks")
@@ -135,6 +135,15 @@ def task_detail(
         raise HTTPException(status_code=404, detail="Task not found")
 
     assignees = db.query(User).filter_by(is_active=True).order_by(User.nickname).all() if user.role == "admin" else []
+
+    # Mark task as seen — upsert task_views row
+    now = datetime.now(timezone.utc)
+    view = db.get(TaskView, {"user_id": user.id, "task_id": task_id})
+    if view:
+        view.last_seen_at = now
+    else:
+        db.add(TaskView(user_id=user.id, task_id=task_id, last_seen_at=now))
+    db.commit()
 
     return templates.TemplateResponse(
         request, "task_detail.html",
