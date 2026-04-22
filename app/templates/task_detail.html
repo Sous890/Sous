@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ task.title }} — Team Agent{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+  <a href="/tasks" style="color:#888;text-decoration:none;font-size:14px;">← Tasks</a>
+  <h1 style="margin:0;">{{ task.title }}</h1>
+  <span style="
+    display:inline-block;
+    padding:3px 12px;
+    border-radius:10px;
+    font-size:13px;
+    font-weight:600;
+    color:#fff;
+    background:{{ status_colors[task.status] }};
+  ">{{ task.status.replace('_', ' ') }}</span>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start;">
+
+  <!-- Left: main content -->
+  <div>
+    {% if task.description %}
+    <div class="card">
+      <h2 style="margin-bottom:8px;">Description</h2>
+      <p style="white-space:pre-wrap;font-size:14px;color:#333;">{{ task.description }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Status change form -->
+    <div class="card">
+      <h2>
+        {% if current_user.role == 'admin' %}
+          Update status
+        {% else %}
+          Change status
+        {% endif %}
+      </h2>
+      <form method="post" action="/tasks/{{ task.id }}/status"
+            style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <select name="status"
+                style="padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;background:#fff;">
+          {% for s in statuses %}
+            <option value="{{ s }}" {{ 'selected' if s == task.status else '' }}>
+              {{ s.replace('_', ' ') }}
+            </option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Right: metadata + admin actions -->
+  <div>
+    <div class="card">
+      <h2>Details</h2>
+      <dl style="font-size:14px;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin-top:8px;">
+        <dt style="color:#888;white-space:nowrap;">Assignee</dt>
+        <dd>{{ task.assignee.nickname }}</dd>
+        <dt style="color:#888;white-space:nowrap;">Created by</dt>
+        <dd>{{ task.creator.nickname }}</dd>
+        <dt style="color:#888;white-space:nowrap;">Created</dt>
+        <dd>{{ task.created_at.strftime('%b %d, %Y') if task.created_at else '—' }}</dd>
+        <dt style="color:#888;white-space:nowrap;">Updated</dt>
+        <dd>{{ task.updated_at.strftime('%b %d, %Y') if task.updated_at else '—' }}</dd>
+      </dl>
+    </div>
+
+    {% if current_user.role == 'admin' %}
+    <!-- Reassign -->
+    <div class="card">
+      <h2>Reassign</h2>
+      <form method="post" action="/tasks/{{ task.id }}/reassign"
+            style="margin-top:8px;display:flex;gap:8px;flex-direction:column;">
+        <select name="assignee_id"
+                style="padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;background:#fff;">
+          {% for u in assignees %}
+            <option value="{{ u.id }}" {{ 'selected' if u.id == task.assignee_id else '' }}>
+              {{ u.nickname }} ({{ u.username }})
+            </option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm">Reassign</button>
+      </form>
+    </div>
+
+    <!-- Delete -->
+    <div class="card" style="border-color:#ffd0d0;">
+      <h2 style="color:#c0392b;">Danger zone</h2>
+      <form method="post" action="/tasks/{{ task.id }}/delete" style="margin-top:8px;">
+        <button type="submit" class="btn btn-danger btn-sm">Delete task</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
