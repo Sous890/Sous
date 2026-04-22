@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}New Task — Team Agent{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+  <a href="/tasks" style="color:#888;text-decoration:none;font-size:14px;">← Tasks</a>
+  <h1 style="margin:0;">New Task</h1>
+</div>
+
+<div class="card" style="max-width:560px;">
+  <form method="post" action="/tasks/new">
+    <div class="form-group">
+      <label for="title">Title</label>
+      <input type="text" id="title" name="title" required autofocus
+             placeholder="e.g. Write Q3 report" />
+    </div>
+
+    <div class="form-group">
+      <label for="description">Description <span style="color:#999;font-weight:400;">(optional)</span></label>
+      <textarea id="description" name="description" rows="4"
+                style="width:100%;padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;font-family:inherit;resize:vertical;"
+                placeholder="Any details the worker needs…"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="assignee_id">Assign to</label>
+      <select id="assignee_id" name="assignee_id" required
+              style="width:100%;padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;background:#fff;">
+        <option value="" disabled selected>— choose a person —</option>
+        {% for u in assignees %}
+          <option value="{{ u.id }}">{{ u.nickname }} ({{ u.username }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button type="submit" class="btn">Create task</button>
+      <a href="/tasks" class="btn btn-outline">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

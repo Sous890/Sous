@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Users — Team Agent{% endblock %}
 {% block content %}
-<h1>Users</h1>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <h1 style="margin:0;">Users</h1>
+  <a href="/tasks" class="btn btn-outline btn-sm">View tasks →</a>
+</div>
 
 {% if temp_info %}
 <div class="flash-success">

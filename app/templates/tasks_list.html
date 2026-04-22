@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Tasks — Team Agent{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <h1 style="margin:0;">Tasks</h1>
+  {% if current_user.role == 'admin' %}
+    <a href="/tasks/new" class="btn">+ New task</a>
+  {% endif %}
+</div>
+
+{% if tasks %}
+<table>
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Assignee</th>
+      <th>Status</th>
+      <th>Created</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for task in tasks %}
+    <tr>
+      <td><a href="/tasks/{{ task.id }}" style="color:#111;text-decoration:none;font-weight:500;">{{ task.title }}</a></td>
+      <td>{{ task.assignee.nickname }}</td>
+      <td>
+        <span style="
+          display:inline-block;
+          padding:2px 10px;
+          border-radius:10px;
+          font-size:12px;
+          font-weight:600;
+          color:#fff;
+          background:{{ status_colors[task.status] }};
+        ">{{ task.status.replace('_', ' ') }}</span>
+      </td>
+      <td style="color:#888;font-size:13px;">{{ task.created_at.strftime('%b %d, %Y') if task.created_at else '—' }}</td>
+      <td><a href="/tasks/{{ task.id }}" class="btn btn-sm btn-outline">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card" style="text-align:center;color:#888;padding:48px 20px;">
+  <p style="font-size:16px;">No tasks yet.</p>
+  {% if current_user.role == 'admin' %}
+    <a href="/tasks/new" class="btn" style="margin-top:16px;">Create the first task</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

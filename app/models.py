@@ -78,3 +78,40 @@ class UserSession(Base):
     user_agent = Column(Text, nullable=True)
 
     user = relationship("User", back_populates="sessions")
+
+
+# Valid task statuses and their display labels / pill colors
+TASK_STATUSES = ["assigned", "in_progress", "blocked", "done"]
+TASK_STATUS_COLORS = {
+    "assigned":    "#888",
+    "in_progress": "#2980b9",
+    "blocked":     "#e67e22",
+    "done":        "#27ae60",
+}
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    title = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    assignee_id = Column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True
+    )
+    created_by_id = Column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    status = Column(String(32), nullable=False, default="assigned")
+    # reserved for Weekend 3 — no FK constraints until those tables exist
+    timer_id = Column(String(36), nullable=True)
+    note_id = Column(String(36), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now)
+
+    assignee = relationship(
+        "User", foreign_keys=[assignee_id], backref="assigned_tasks"
+    )
+    creator = relationship(
+        "User", foreign_keys=[created_by_id], backref="created_tasks"
+    )

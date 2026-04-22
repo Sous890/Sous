@@ -117,6 +117,7 @@
       {% if request.state.current_user.role == 'admin' %}
         <a href="/admin/users">Users</a>
       {% endif %}
+      <a href="/tasks">Tasks</a>
       <span class="spacer"></span>
       <span style="font-size:13px;color:#888">{{ request.state.current_user.nickname }}</span>
       <a href="/logout">Log out</a>

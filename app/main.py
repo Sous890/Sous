@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import SESSION_SECRET
 from app.db import get_session as _get_db
 from app import auth as auth_mod
-from app.routes import auth_routes, admin_routes, root_routes
+from app.routes import auth_routes, admin_routes, root_routes, task_routes
 
 app = FastAPI(title="Team Agent")
 
@@ -35,3 +35,4 @@ async def attach_user(request: Request, call_next):
 app.include_router(root_routes.router)
 app.include_router(auth_routes.router)
 app.include_router(admin_routes.router)
+app.include_router(task_routes.router)

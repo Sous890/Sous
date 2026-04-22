@@ -4,6 +4,12 @@
 <h1>Hi, {{ user.nickname }} 👋</h1>
 <p style="color:#555;font-size:15px;">You're logged in as <strong>{{ user.username }}</strong>.</p>
 
+{% if 'view_own_tasks' in user.permission_set() %}
+<div style="margin-top:24px;">
+  <a href="/tasks" class="btn">View my tasks →</a>
+</div>
+{% endif %}
+
 {% if user.permission_set() %}
 <div class="card" style="margin-top:24px;">
   <h2>Your permissions</h2>
