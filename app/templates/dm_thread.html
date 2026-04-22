@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Messages with {{ other.nickname }} — Team Agent{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+  <a href="/dm" style="color:#888;text-decoration:none;font-size:14px;">← Messages</a>
+  <h1 style="margin:0;">{{ other.nickname }}</h1>
+  <span style="color:#aaa;font-size:13px;">({{ other.username }})</span>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+  {% if messages %}
+    {% for msg in messages %}
+    {% set is_mine = msg.sender_id == current_user.id %}
+    <div style="
+      display:flex;
+      flex-direction:column;
+      align-items:{{ 'flex-end' if is_mine else 'flex-start' }};
+    ">
+      <div style="
+        max-width:70%;
+        background:{{ '#111' if is_mine else '#fff' }};
+        color:{{ '#fff' if is_mine else '#111' }};
+        border:1px solid {{ '#111' if is_mine else '#e5e5e5' }};
+        border-radius:{{ '12px 12px 2px 12px' if is_mine else '12px 12px 12px 2px' }};
+        padding:10px 14px;
+        font-size:14px;
+        white-space:pre-wrap;
+        word-break:break-word;
+      ">{{ msg.body }}</div>
+      <div style="font-size:11px;color:#aaa;margin-top:3px;padding:0 4px;">
+        {{ msg.sender.nickname }} · {{ msg.created_at.strftime('%b %d at %H:%M') if msg.created_at else '' }}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div style="text-align:center;color:#aaa;padding:40px 0;font-size:14px;">
+      No messages yet. Send the first one below.
+    </div>
+  {% endif %}
+</div>
+
+{% if can_send %}
+<div style="background:#fff;border:1px solid #e5e5e5;border-radius:6px;padding:16px 18px;">
+  <form method="post" action="/dm/{{ other.id }}/send">
+    <div style="display:flex;gap:10px;align-items:flex-end;">
+      <textarea name="body" rows="2" required
+                style="flex:1;padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;font-family:inherit;resize:vertical;"
+                placeholder="Write a message…"></textarea>
+      <button type="submit" class="btn" style="white-space:nowrap;">Send</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

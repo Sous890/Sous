@@ -115,3 +115,53 @@ class Task(Base):
     creator = relationship(
         "User", foreign_keys=[created_by_id], backref="created_tasks"
     )
+    comments = relationship(
+        "TaskComment",
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskComment.created_at",
+    )
+
+
+class TaskComment(Base):
+    __tablename__ = "task_comments"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    task_id = Column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    task = relationship("Task", back_populates="comments")
+    author = relationship("User", foreign_keys=[author_id])
+
+
+class TaskView(Base):
+    """Tracks when each user last viewed each task — used for unread badge counts."""
+    __tablename__ = "task_views"
+
+    user_id = Column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True, nullable=False,
+    )
+    task_id = Column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"),
+        primary_key=True, nullable=False,
+    )
+    last_seen_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class DirectMessage(Base):
+    __tablename__ = "direct_messages"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    sender_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    recipient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    read_at = Column(DateTime(timezone=True), nullable=True)  # NULL = unread
+
+    sender = relationship("User", foreign_keys=[sender_id], backref="sent_messages")
+    recipient = relationship("User", foreign_keys=[recipient_id], backref="received_messages")

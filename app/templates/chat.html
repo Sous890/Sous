@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Chat — Team Agent{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <h1 style="margin:0;">Chat</h1>
+  <button id="resetBtn" class="btn btn-outline btn-sm">Reset conversation</button>
+</div>
+
+<div id="log" style="
+  background:#fff;
+  border:1px solid #e5e5e5;
+  border-radius:6px;
+  padding:16px;
+  min-height:320px;
+  max-height:560px;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  margin-bottom:16px;
+  font-size:14px;
+">
+  <div style="color:#aaa;text-align:center;padding:40px 0;" id="emptyState">
+    Ask me anything about your tasks, or tell me to create and assign work.
+  </div>
+</div>
+
+<div style="display:flex;gap:10px;">
+  <textarea id="input" rows="2"
+    style="flex:1;padding:10px 14px;border:1px solid #ccc;border-radius:4px;font-size:14px;font-family:inherit;resize:none;"
+    placeholder="Type a message… (Enter to send, Shift+Enter for newline)"></textarea>
+  <button id="sendBtn" class="btn" style="align-self:flex-end;padding:10px 20px;">Send</button>
+</div>
+
+<script>
+  const log = document.getElementById('log');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const emptyState = document.getElementById('emptyState');
+  let sessionId = crypto.randomUUID();
+  let busy = false;
+
+  function addBubble(role, text) {
+    if (emptyState) emptyState.remove();
+    const isUser = role === 'user';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `display:flex;flex-direction:column;align-items:${isUser ? 'flex-end' : 'flex-start'};`;
+    const bubble = document.createElement('div');
+    bubble.style.cssText = `
+      max-width:80%;
+      background:${isUser ? '#111' : '#f5f5f5'};
+      color:${isUser ? '#fff' : '#111'};
+      border-radius:${isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px'};
+      padding:10px 14px;
+      white-space:pre-wrap;
+      word-break:break-word;
+      font-size:14px;
+      line-height:1.5;
+    `;
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
+    log.appendChild(wrap);
+    log.scrollTop = log.scrollHeight;
+    return bubble;
+  }
+
+  async function send() {
+    const q = input.value.trim();
+    if (!q || busy) return;
+    busy = true;
+    input.value = '';
+    sendBtn.disabled = true;
+    sendBtn.textContent = '…';
+
+    addBubble('user', q);
+    const thinking = addBubble('agent', 'Thinking…');
+    thinking.style.color = '#aaa';
+    thinking.style.fontStyle = 'italic';
+
+    try {
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({session_id: sessionId, question: q}),
+      });
+      const data = await res.json();
+      thinking.style.color = '#111';
+      thinking.style.fontStyle = 'normal';
+      thinking.textContent = data.answer || data.error || '(no response)';
+      if (data.session_id) sessionId = data.session_id;
+    } catch (err) {
+      thinking.style.color = '#c0392b';
+      thinking.textContent = 'Error: could not reach server.';
+    }
+
+    busy = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send';
+    input.focus();
+  }
+
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  resetBtn.addEventListener('click', async () => {
+    await fetch('/reset', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sessionId}),
+    });
+    sessionId = crypto.randomUUID();
+    log.innerHTML = '<div style="color:#aaa;text-align:center;padding:40px 0;">Conversation reset. Ask me anything.</div>';
+  });
+</script>
+{% endblock %}
