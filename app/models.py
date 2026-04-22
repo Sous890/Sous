@@ -193,3 +193,75 @@ class Timer(Base):
     cancelled = Column(Boolean, nullable=False, default=False)
 
     owner = relationship("User", foreign_keys=[owner_id], backref="timers")
+
+
+# ---------------------------------------------------------------------------
+# Calendar (admin-owned scheduler)
+# ---------------------------------------------------------------------------
+
+class CalendarEvent(Base):
+    """
+    An event on the admin calendar.
+    Admins create/own events. Workers appear as attendees via EventAttendee.
+    Tasks can be tagged to an event via EventTask.
+    """
+    __tablename__ = "calendar_events"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    title = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    location = Column(Text, nullable=True)
+    starts_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    ends_at = Column(DateTime(timezone=True), nullable=False)
+    all_day = Column(Boolean, nullable=False, default=False)
+    created_by_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now)
+    updated_at = Column(DateTime(timezone=True), default=_now)
+
+    creator = relationship("User", foreign_keys=[created_by_id])
+    attendees = relationship(
+        "EventAttendee",
+        back_populates="event",
+        cascade="all, delete-orphan",
+    )
+    tagged_tasks = relationship(
+        "EventTask",
+        back_populates="event",
+        cascade="all, delete-orphan",
+    )
+
+
+class EventAttendee(Base):
+    """A user invited to a calendar event."""
+    __tablename__ = "event_attendees"
+
+    event_id = Column(
+        String(36), ForeignKey("calendar_events.id", ondelete="CASCADE"),
+        primary_key=True, nullable=False,
+    )
+    user_id = Column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True, nullable=False,
+    )
+    added_at = Column(DateTime(timezone=True), default=_now)
+
+    event = relationship("CalendarEvent", back_populates="attendees")
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class EventTask(Base):
+    """A task tagged/linked to a calendar event."""
+    __tablename__ = "event_tasks"
+
+    event_id = Column(
+        String(36), ForeignKey("calendar_events.id", ondelete="CASCADE"),
+        primary_key=True, nullable=False,
+    )
+    task_id = Column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"),
+        primary_key=True, nullable=False,
+    )
+    added_at = Column(DateTime(timezone=True), default=_now)
+
+    event = relationship("CalendarEvent", back_populates="tagged_tasks")
+    task = relationship("Task", foreign_keys=[task_id])

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit event' if event else 'New event' }} — Calendar{% endblock %}
+{% block content %}
+
+<style>
+  .attendee-grid, .task-list {
+    max-height:260px; overflow-y:auto;
+    border:1px solid #e5e5e5; border-radius:4px;
+    padding:8px; background:#fafafa;
+  }
+  .attendee-grid label, .task-list label {
+    display:flex; align-items:center; gap:8px;
+    padding:4px 6px; border-radius:3px;
+    font-size:14px; cursor:pointer;
+  }
+  .attendee-grid label:hover, .task-list label:hover { background:#fff; }
+  .attendee-grid input[type=checkbox], .task-list input[type=checkbox] { margin:0; }
+  .task-pill {
+    display:inline-block; padding:1px 8px; border-radius:10px;
+    font-size:11px; font-weight:600; color:#fff; margin-left:6px;
+  }
+  .two-col {
+    display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  }
+  @media (max-width:700px){ .two-col { grid-template-columns:1fr; } }
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <h1 style="margin:0;">{{ 'Edit event' if event else 'New event' }}</h1>
+  <a href="/admin/calendar{% if event %}?month={{ event.starts_at.strftime('%Y-%m') }}{% endif %}"
+     class="btn btn-outline btn-sm">← Back to calendar</a>
+</div>
+
+{% if flash_success is defined and flash_success %}
+  <div class="flash-success">{{ flash_success }}</div>
+{% endif %}
+{% if flash_error is defined and flash_error %}
+  <div class="flash-error">{{ flash_error }}</div>
+{% endif %}
+
+<form method="post"
+      action="{% if event %}/admin/calendar/{{ event.id }}{% else %}/admin/calendar/new{% endif %}">
+
+  <div class="card">
+    <h2>Details</h2>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" name="title" required
+             value="{{ event.title if event else '' }}" />
+    </div>
+
+    <div class="two-col">
+      <div class="form-group">
+        <label>Starts</label>
+        <input type="datetime-local" name="starts_at" required
+               value="{{ default_start }}"
+               style="padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;width:100%;" />
+      </div>
+      <div class="form-group">
+        <label>Ends</label>
+        <input type="datetime-local" name="ends_at" required
+               value="{{ default_end }}"
+               style="padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;width:100%;" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" name="all_day" value="1"
+               {% if event and event.all_day %}checked{% endif %} />
+        <span>All-day event</span>
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label>Location (optional)</label>
+      <input type="text" name="location"
+             value="{{ event.location if event and event.location else '' }}" />
+    </div>
+
+    <div class="form-group">
+      <label>Description (optional)</label>
+      <textarea name="description" rows="4"
+                style="width:100%;padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px;font-family:inherit;">{{ event.description if event and event.description else '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Invite users <span style="font-size:13px;color:#888;font-weight:normal;">(they'll see this on their calendar)</span></h2>
+    {% if users %}
+      <div class="attendee-grid">
+        {% for u in users %}
+          <label>
+            <input type="checkbox" name="attendee_ids" value="{{ u.id }}"
+                   {% if u.id in selected_user_ids %}checked{% endif %} />
+            <span>{{ u.nickname }} <span style="color:#aaa;font-size:12px;">({{ u.username }})</span></span>
+            {% if u.role == 'admin' %}<span class="badge badge-admin" style="font-size:10px;">admin</span>{% endif %}
+          </label>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div style="color:#888;font-size:14px;">No active users to invite.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Tag tasks to this event <span style="font-size:13px;color:#888;font-weight:normal;">(optional)</span></h2>
+    {% if tasks %}
+      <div class="task-list">
+        {% for t in tasks %}
+          <label>
+            <input type="checkbox" name="task_ids" value="{{ t.id }}"
+                   {% if t.id in selected_task_ids %}checked{% endif %} />
+            <span style="flex:1;">
+              <span style="font-weight:500;">{{ t.title }}</span>
+              <span style="color:#888;font-size:12px;"> — {{ t.assignee.nickname }}</span>
+              <span class="task-pill" style="background:{{ status_colors[t.status] }};">{{ t.status.replace('_',' ') }}</span>
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div style="color:#888;font-size:14px;">No tasks to tag yet. <a href="/tasks/new">Create one →</a></div>
+    {% endif %}
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button type="submit" class="btn">{{ 'Save changes' if event else 'Create event' }}</button>
+    {% if event %}
+      <a href="/admin/calendar?month={{ event.starts_at.strftime('%Y-%m') }}" class="btn btn-outline">Cancel</a>
+      <span style="flex:1;"></span>
+    {% endif %}
+  </div>
+</form>
+
+{% if event %}
+  <div class="card" style="margin-top:24px;border-color:#f5c6cb;background:#fff9f9;">
+    <h2 style="color:#721c24;">Delete this event</h2>
+    <form method="post" action="/admin/calendar/{{ event.id }}/delete"
+          onsubmit="return confirm('Delete event &quot;{{ event.title }}&quot;? This cannot be undone.');">
+      <button type="submit" class="btn btn-danger">Delete event</button>
+    </form>
+  </div>
+{% endif %}
+
+{% endblock %}

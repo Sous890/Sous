@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}{{ anchor.strftime('%B %Y') }} — Calendar{% endblock %}
+{% block content %}
+
+<style>
+  .cal-toolbar {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:16px; gap:12px; flex-wrap:wrap;
+  }
+  .cal-toolbar h1 { margin:0; }
+  .cal-nav { display:flex; gap:6px; align-items:center; }
+  .cal-grid {
+    display:grid;
+    grid-template-columns:repeat(7, 1fr);
+    gap:1px;
+    background:#ddd;
+    border:1px solid #ddd;
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .cal-dow {
+    background:#f0f0f0;
+    padding:8px 10px;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:#666;
+    text-align:center;
+  }
+  .cal-day {
+    background:#fff;
+    min-height:92px;
+    padding:4px 6px;
+    font-size:13px;
+    display:flex; flex-direction:column; gap:2px;
+    position:relative;
+  }
+  .cal-day.other-month { background:#fafafa; color:#bbb; }
+  .cal-day.today { background:#fffdf3; }
+  .cal-day .daynum {
+    font-weight:600; font-size:13px; margin-bottom:2px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .cal-day.today .daynum .num {
+    background:#111; color:#fff; border-radius:50%;
+    width:22px; height:22px;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:12px;
+  }
+  .cal-day .add-btn {
+    opacity:0; transition:opacity .1s;
+    background:none; border:none; cursor:pointer;
+    color:#888; font-size:16px; line-height:1; padding:0 4px;
+  }
+  .cal-day:hover .add-btn { opacity:1; }
+  .cal-evt {
+    display:block;
+    background:#2980b9; color:#fff;
+    font-size:11px; font-weight:500;
+    padding:2px 6px;
+    border-radius:3px;
+    text-decoration:none;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    line-height:1.35;
+  }
+  .cal-evt:hover { filter:brightness(1.1); }
+  .cal-evt.has-tasks { background:#8e44ad; }
+  .cal-evt .evt-time { opacity:.8; font-weight:400; }
+  .cal-more { font-size:11px; color:#888; padding:0 6px; }
+  @media (max-width:700px){
+    .cal-day { min-height:60px; font-size:11px; }
+    .cal-evt { font-size:10px; padding:1px 4px; }
+  }
+</style>
+
+<div class="cal-toolbar">
+  <h1>{{ anchor.strftime('%B %Y') }}{% if is_admin_view %} <span style="font-size:13px;color:#888;font-weight:normal;">— Admin calendar</span>{% endif %}</h1>
+  <div class="cal-nav">
+    <a href="?month={{ prev_month }}" class="btn btn-sm btn-outline">‹ Prev</a>
+    <a href="{{ '/admin/calendar' if is_admin_view else '/calendar' }}" class="btn btn-sm btn-outline">Today</a>
+    <a href="?month={{ next_month }}" class="btn btn-sm btn-outline">Next ›</a>
+    {% if is_admin_view %}
+      <a href="/admin/calendar/new" class="btn btn-sm">+ New event</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if flash_success %}<div class="flash-success">{{ flash_success }}</div>{% endif %}
+{% if flash_error %}<div class="flash-error">{{ flash_error }}</div>{% endif %}
+
+<div class="cal-grid">
+  <div class="cal-dow">Sun</div>
+  <div class="cal-dow">Mon</div>
+  <div class="cal-dow">Tue</div>
+  <div class="cal-dow">Wed</div>
+  <div class="cal-dow">Thu</div>
+  <div class="cal-dow">Fri</div>
+  <div class="cal-dow">Sat</div>
+
+  {% for week in weeks %}
+    {% for day in week %}
+      {% set day_events = events_by_day.get(day, []) %}
+      <div class="cal-day
+        {% if day.month != anchor.month %}other-month{% endif %}
+        {% if day == today %}today{% endif %}">
+        <div class="daynum">
+          <span class="num">{{ day.day }}</span>
+          {% if is_admin_view %}
+            <a href="/admin/calendar/new?date_str={{ day.isoformat() }}"
+               class="add-btn" title="Add event on {{ day.isoformat() }}">+</a>
+          {% endif %}
+        </div>
+        {% for ev in day_events[:3] %}
+          <a class="cal-evt {% if ev.tagged_tasks %}has-tasks{% endif %}"
+             href="{{ '/admin/calendar/' if is_admin_view else '/calendar/' }}{{ ev.id }}"
+             title="{{ ev.title }}{% if ev.location %} — {{ ev.location }}{% endif %}">
+            {% if not ev.all_day %}
+              <span class="evt-time">{{ ev.starts_at.strftime('%-I:%M%p')|lower }}</span>
+            {% endif %}
+            {{ ev.title }}
+          </a>
+        {% endfor %}
+        {% if day_events|length > 3 %}
+          <span class="cal-more">+{{ day_events|length - 3 }} more</span>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endfor %}
+</div>
+
+<div style="margin-top:20px;font-size:12px;color:#888;">
+  {% if is_admin_view %}
+    <span style="display:inline-block;width:10px;height:10px;background:#2980b9;border-radius:2px;vertical-align:middle;"></span> event &nbsp;
+    <span style="display:inline-block;width:10px;height:10px;background:#8e44ad;border-radius:2px;vertical-align:middle;"></span> event with tagged tasks
+  {% else %}
+    Showing events you've been invited to.
+  {% endif %}
+</div>
+
+{% endblock %}

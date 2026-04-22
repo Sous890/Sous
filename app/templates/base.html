@@ -310,6 +310,9 @@
       <a href="/">Home</a>
       {% if request.state.current_user.role == 'admin' %}
         <a href="/admin/users">Users</a>
+        <a href="/admin/calendar">Calendar</a>
+      {% else %}
+        <a href="/calendar">Calendar</a>
       {% endif %}
       <a href="/tasks" style="position:relative;">
         Tasks

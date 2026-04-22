@@ -3,7 +3,10 @@
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
   <h1 style="margin:0;">Users</h1>
-  <a href="/tasks" class="btn btn-outline btn-sm">View tasks →</a>
+  <div style="display:flex;gap:8px;">
+    <a href="/admin/calendar" class="btn btn-outline btn-sm">Calendar →</a>
+    <a href="/tasks" class="btn btn-outline btn-sm">View tasks →</a>
+  </div>
 </div>
 
 {% if temp_info %}
@@ -13,6 +16,14 @@
   This password is shown <em>once only</em>:<br><br>
   <code style="font-size:16px;letter-spacing:.05em;">{{ temp_info.password }}</code>
 </div>
+{% endif %}
+
+{% if flash_success %}
+<div class="flash-success">{{ flash_success }}</div>
+{% endif %}
+
+{% if flash_error %}
+<div class="flash-error">{{ flash_error }}</div>
 {% endif %}
 
 {% if error is defined and error %}
@@ -44,12 +55,12 @@
       <th>Role</th>
       <th>Active</th>
       <th>Permissions</th>
-      <th></th>
+      <th style="width:1%;white-space:nowrap;">Actions</th>
     </tr>
   </thead>
   <tbody>
     {% for u in users %}
-    <tr>
+    <tr {% if not u.is_active %}style="opacity:.55;"{% endif %}>
       <td><code>{{ u.username }}</code></td>
       <td>{{ u.nickname }}</td>
       <td>
@@ -59,7 +70,13 @@
           <span class="badge badge-worker">worker</span>
         {% endif %}
       </td>
-      <td>{{ "Yes" if u.is_active else "No" }}</td>
+      <td>
+        {% if u.is_active %}
+          <span style="color:#27ae60;font-weight:600;">Yes</span>
+        {% else %}
+          <span style="color:#c0392b;font-weight:600;">No</span>
+        {% endif %}
+      </td>
       <td>
         {% if u.role == 'admin' %}
           <em style="color:#888;font-size:13px;">all (admin)</em>
@@ -82,9 +99,62 @@
           {% endfor %}
         {% endif %}
       </td>
-      <td></td>
+      <td style="white-space:nowrap;">
+        {% if u.id == current_user.id %}
+          <span style="color:#aaa;font-size:12px;">(you)</span>
+        {% else %}
+          {% if u.is_active %}
+            <form method="post" action="/admin/users/{{ u.id }}/deactivate"
+                  style="display:inline;"
+                  onsubmit="return confirm('Deactivate {{ u.nickname }}? They will not be able to log in. Their history will be preserved and you can reactivate them later.');">
+              <button type="submit" class="btn btn-sm btn-outline" title="Deactivate (soft-remove)">Deactivate</button>
+            </form>
+          {% else %}
+            <form method="post" action="/admin/users/{{ u.id }}/reactivate" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-outline" title="Reactivate">Reactivate</button>
+            </form>
+          {% endif %}
+          <button type="button"
+                  class="btn btn-sm btn-danger ta-del-toggle"
+                  data-target="del-{{ u.id }}"
+                  title="Permanently delete">Delete…</button>
+          <div id="del-{{ u.id }}" style="display:none;margin-top:8px;padding:10px;background:#fff3f3;border:1px solid #f5c6cb;border-radius:4px;">
+            <div style="font-size:13px;color:#721c24;margin-bottom:6px;">
+              Permanently delete <strong>{{ u.nickname }}</strong>? This cannot be undone. Tasks assigned to this user and their DMs, notes, timers, and calendar events will be deleted. Type <code>{{ u.username }}</code> to confirm.
+            </div>
+            <form method="post" action="/admin/users/{{ u.id }}/delete"
+                  style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <input type="text" name="confirm" placeholder="{{ u.username }}" required
+                     style="flex:1;min-width:120px;padding:4px 8px;font-size:13px;" autocomplete="off" />
+              <button type="submit" class="btn btn-sm btn-danger">Confirm delete</button>
+              <button type="button" class="btn btn-sm btn-outline ta-del-cancel"
+                      data-target="del-{{ u.id }}">Cancel</button>
+            </form>
+          </div>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+<script>
+  // Toggle delete confirmation panels
+  document.querySelectorAll('.ta-del-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var panel = document.getElementById(btn.dataset.target);
+      if (panel) { panel.style.display = 'block'; btn.style.display = 'none'; }
+    });
+  });
+  document.querySelectorAll('.ta-del-cancel').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var panel = document.getElementById(btn.dataset.target);
+      if (panel) {
+        panel.style.display = 'none';
+        var toggle = document.querySelector('.ta-del-toggle[data-target="'+btn.dataset.target+'"]');
+        if (toggle) toggle.style.display = 'inline-block';
+      }
+    });
+  });
+</script>
 {% endblock %}

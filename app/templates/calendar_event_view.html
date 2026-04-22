@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ event.title }} — Calendar{% endblock %}
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <h1 style="margin:0;">{{ event.title }}</h1>
+  <a href="/calendar?month={{ event.starts_at.strftime('%Y-%m') }}" class="btn btn-outline btn-sm">← Back</a>
+</div>
+
+<div class="card">
+  <div style="font-size:14px;line-height:1.8;">
+    <div><strong>When:</strong>
+      {% if event.all_day %}
+        {{ event.starts_at.strftime('%A, %b %-d, %Y') }} (all day)
+      {% else %}
+        {{ event.starts_at.strftime('%A, %b %-d, %Y') }} &middot;
+        {{ event.starts_at.strftime('%-I:%M %p') }} – {{ event.ends_at.strftime('%-I:%M %p') }}
+      {% endif %}
+    </div>
+    {% if event.location %}
+      <div><strong>Where:</strong> {{ event.location }}</div>
+    {% endif %}
+    <div><strong>Scheduled by:</strong> {{ event.creator.nickname }}</div>
+  </div>
+
+  {% if event.description %}
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid #eee;white-space:pre-wrap;font-size:14px;">{{ event.description }}</div>
+  {% endif %}
+</div>
+
+{% if event.attendees %}
+<div class="card">
+  <h2>Attendees</h2>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+    {% for a in event.attendees %}
+      <span class="badge badge-worker" style="padding:4px 10px;">{{ a.user.nickname }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if event.tagged_tasks %}
+<div class="card">
+  <h2>Related tasks</h2>
+  <table style="margin:0;">
+    <thead>
+      <tr><th>Title</th><th>Assignee</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for et in event.tagged_tasks %}
+        <tr>
+          <td>{{ et.task.title }}</td>
+          <td>{{ et.task.assignee.nickname }}</td>
+          <td>
+            <span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600;color:#fff;background:{{ status_colors[et.task.status] }};">
+              {{ et.task.status.replace('_',' ') }}
+            </span>
+          </td>
+          <td>
+            {% if current_user.role == 'admin' or et.task.assignee_id == current_user.id %}
+              <a href="/tasks/{{ et.task.id }}" class="btn btn-sm btn-outline">Open</a>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}
